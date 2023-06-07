@@ -62,7 +62,7 @@ function SetLocationToAppointmentBody(LocationToBody) {
     });
 }
 
-function addLocationToAppointmentBody() {
+function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
 
@@ -79,6 +79,7 @@ function addLocationToAppointmentBody() {
             console.error("An error occured:", error);
         });    
     }
+event.completed();
 )};
 
 Office.actions.associate("addLocationToAppointmentBody", addLocationToAppointmentBody)
