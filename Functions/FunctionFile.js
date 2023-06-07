@@ -87,11 +87,11 @@ function addLocationToAppointmentBody(event) {
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation),
                 SetLocationToAppointmentBody(officeLocation);
+            event.completed();
         }).catch((error) => {
             console.error("An error occured:", error);
         });
-    });
-    event.completed();
+    })
 };
 
 Office.actions.associate("addLocationToAppointmentBody", addLocationToAppointmentBody)
