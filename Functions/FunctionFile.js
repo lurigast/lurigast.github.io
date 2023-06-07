@@ -42,6 +42,7 @@ function sendRequest(roomName) {
     return new Promise((resolve, reject) => {
         Office.context.mailbox.makeEwsRequestAsync(request, (result) => {
             if (result.status == Office.AsyncResultStatus.Succeeded) {
+                console.log(result.value);
                 const parsedValue = $.parseXML(result.value);
                 let officeLocation = parsedValue.getElementsByTagName("t:OfficeLocation")[0].textContent;
                 resolve(officeLocation);
