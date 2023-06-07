@@ -35,8 +35,6 @@ function BuildXMLRequestForRoomName(roomName) {
 //</ResolveNames>
 //</soap:Body>
 //</soap:Envelope>`;
-    console.log(result);
-    return result;
 };
 
 function sendRequest(roomName) {
@@ -77,7 +75,7 @@ function SetLocationToAppointmentBody(LocationToBody) {
     });
 }
 
-function addLocationToAppointmentBody(event) {
+function addLocationToAppointmentBody() {
 
     var item = Office.context.mailbox.item;
 
@@ -90,7 +88,6 @@ function addLocationToAppointmentBody(event) {
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation),
                 SetLocationToAppointmentBody(officeLocation);
-            event.completed();
         }).catch((error) => {
             console.error("An error occured:", error);
         });
