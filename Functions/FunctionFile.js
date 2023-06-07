@@ -22,7 +22,7 @@ function BuildXMLRequestForRoomName(roomName) {
 '</soap:Envelope>';*/
 
     var result =
-`<?xml version="1.0" encoding="utf-8"?>
+        `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
 <soap:Header>
 <RequestServerVersion Version="Exchange2013" xmlns="http://schemas.microsoft.com/exchange/services/2006/types" soap:mustUnderstand="0" />
@@ -31,7 +31,7 @@ function BuildXMLRequestForRoomName(roomName) {
     <ResolveNames xmlns="http://schemas.microsoft.com/exchange/services/2006/messages"
                   xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"
                   ReturnFullContactData="true">
-      <UnresolvedEntry>` + RoomName + `</UnresolvedEntry>
+      <UnresolvedEntry>`+ roomName + `</UnresolvedEntry>
     </ResolveNames>
   </soap:Body>
 </soap:Envelope>`
