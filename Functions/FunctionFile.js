@@ -75,7 +75,7 @@ function SetLocationToAppointmentBody(LocationToBody) {
     });
 }
 
-function addLocationToAppointmentBody() {
+function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
 
@@ -88,6 +88,7 @@ function addLocationToAppointmentBody() {
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation),
                 SetLocationToAppointmentBody(officeLocation);
+            event.completed();
         }).catch((error) => {
             console.error("An error occured:", error);
         });
