@@ -87,7 +87,7 @@ function addLocationToAppointmentBody(event) {
         console.log(`Appointment location: ${result.value}`);
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation),
-                SetLocationToAppointmentBody(officeLocation);
+                SetLocationToAppointmentBody(officeLocation + " ");
             event.completed();
         }).catch((error) => {
             console.error("An error occured:", error);
