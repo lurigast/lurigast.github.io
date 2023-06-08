@@ -24,17 +24,6 @@ function BuildXMLRequestForRoomName(roomName) {
 </soap:Envelope>`
     return result;
 
-//    var result = `<?xml version="1.0" encoding="utf-8"?>
-//<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
-//<soap:Header>
-//<RequestServerVersion Version="Exchange2013" xmlns="http://schemas.microsoft.com/exchange/services/2006/types" soap:mustUnderstand="0" />
-//</soap:Header>
-//<soap:Body>
-//<ResolveNames xmlns="http://schemas.microsoft.com/exchange/services/2006/messages" xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types" ReturnFullContactData="true">
-//<UnresolvedEntry>`+ roomName + `</UnresolvedEntry>
-//</ResolveNames>
-//</soap:Body>
-//</soap:Envelope>`;
 };
 
 function sendRequest(roomName) {
@@ -65,10 +54,16 @@ function SetLocationToAppointmentBody(LocationToBody) {
             console.log("Action failed with error: " + asyncResult.error.message);
             return;
         }
-        bodyFormat = asyncResult.value;
+        console.log("bodyFormat: " + asyncResult.value);
+        if (asyncResult === 'html') {
+            bodyFormat = "Office.CoercionType.Html";
+        } else {
+            bodyFormat = "Office.CoercionType.Text";
+        }
+        console.log("bodyFormat: " + bodyFormat);
     });
-    // Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: bodyFormat }, (asyncResult) => {
-     Office.context.mailbox.item.body.prependAsync(parsedText, bodyFormat, (asyncResult) => {
+
+    Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: bodyFormat }, (asyncResult) => {
         if (asyncResult.status === Office.AsyncResultStatus.Failed) {
             console.log("Action failed with error: " + asyncResult.error.message);
             return;
