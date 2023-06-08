@@ -55,7 +55,7 @@ function SetLocationToAppointmentBody(LocationToBody) {
             return;
         }
         console.log("bodyFormat: " + asyncResult.value);
-        if (asyncResult === 'html') {
+        if (asyncResult.value === 'html') {
             bodyFormat = "Office.CoercionType.Html";
         } else {
             bodyFormat = "Office.CoercionType.Text";
