@@ -56,22 +56,22 @@ function sendRequest(roomName) {
 
 function SetLocationToAppointmentBody(LocationToBody) {
 
-    let bodyFormat;
+    
 
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
         if (asyncResult.status === Office.AsyncResultStatus.Failed) {
             console.log("Action failed with error: " + asyncResult.error.message);
             return;
         }
-        bodyFormat = asyncResult.value;
+        const bodyFormat = asyncResult.value;
         console.log("bodyFormat: " + bodyFormat);
-    });
 
-    Office.context.mailbox.item.body.prependAsync(LocationToBody, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
-        if (asyncResult.status === Office.AsyncResultStatus.Failed) {
-            console.log("Action failed with error: " + asyncResult.error.message);
-            return;
-        }
+        Office.context.mailbox.item.body.prependAsync(parseHyperlinks(LocationToBody), { coercionType: bodyFormat }, (asyncResult) => {
+            if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+                console.log("Action failed with error: " + asyncResult.error.message);
+                return;
+            }
+        });
     });
 }
 
@@ -92,7 +92,7 @@ function addLocationToAppointmentBody(event) {
         console.log(`Appointment location: ${result.value}`);
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation),
-                SetLocationToAppointmentBody(parseHyperlinks(officeLocation));
+                SetLocationToAppointmentBody(officeLocation);
             event.completed();
         }).catch((error) => {
             console.error("An error occured:", error);
