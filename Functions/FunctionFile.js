@@ -75,6 +75,11 @@ function SetLocationToAppointmentBody(LocationToBody) {
     });
 }
 
+function parseHyperlinks(text) {
+    var urlRegex = /\((https?:\/\/[^)]+)\)/g;
+    return text.replace(urlRegex, '<a href="$1">$1</a>');
+}
+
 function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
@@ -87,7 +92,7 @@ function addLocationToAppointmentBody(event) {
         console.log(`Appointment location: ${result.value}`);
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation),
-                SetLocationToAppointmentBody(officeLocation + " \n");
+                SetLocationToAppointmentBody(parseHyperlinks(officeLocation));
             event.completed();
         }).catch((error) => {
             console.error("An error occured:", error);
