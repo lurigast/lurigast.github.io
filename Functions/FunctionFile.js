@@ -81,7 +81,7 @@ function addLocationToAppointmentBody(event) {
     var item = Office.context.mailbox.item;
 
     item.location.getAsync({ asyncContext: event }, (result) => {
-        let event = asyncResult.asyncContext;
+        let event = result.asyncContext;
         if (result.status !== Office.AsyncResultStatus.Succeeded) {
             console.error(`Action failed with message ${result.error.message}`);
             event.completed({ allowEvent: false, errorMessage: "Failed to get the appointment's location." });
