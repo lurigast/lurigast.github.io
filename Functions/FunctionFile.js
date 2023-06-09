@@ -99,7 +99,7 @@ function addLocationToAppointmentBody(event) {
         console.log(`Appointment location: ${result.value}`);
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation);
-            if (!(officeLocation.includes("https://") || !officeLocation.includes("http://"))) {
+            if (!(officeLocation.includes("https://") || officeLocation.includes("http://"))) {
                 console.log("This room has no URL location. Contact IT support.")
                 event.completed({ allowEvent: false, errorMessage: "Room has no URL." });
                 return;
