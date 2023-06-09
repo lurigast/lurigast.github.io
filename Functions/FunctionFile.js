@@ -1,9 +1,9 @@
 ﻿Office.initialize = function (reason) {
-    
+    // Initiera Office.js
 }
 
 Office.onReady(() => {
-    //Initiera Office.js
+    // Ladda Office.js
 });
 
 function BuildXMLRequestForRoomName(roomName) {
@@ -45,28 +45,28 @@ function sendRequest(roomName) {
 
 function SetLocationToAppointmentBody(LocationToBody) {
 
-    let bodyFormat;
     let parsedText = parseHyperlinks(LocationToBody);
-    console.log("parsedText: " + parsedText);
 
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
         if (asyncResult.status === Office.AsyncResultStatus.Failed) {
             console.log("Action failed with error: " + asyncResult.error.message);
             return;
         }
-        console.log("bodyFormat: " + asyncResult.value);
+        
         if (asyncResult.value === 'html') {
-            bodyFormat = "Office.CoercionType.Html";
+            Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
+                if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+                    console.log("Action failed with error: " + asyncResult.error.message);
+                    return;
+                }
+            });
         } else {
-            bodyFormat = "Office.CoercionType.Text";
-        }
-        console.log("bodyFormat: " + bodyFormat);
-    });
-
-    Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
-        if (asyncResult.status === Office.AsyncResultStatus.Failed) {
-            console.log("Action failed with error: " + asyncResult.error.message);
-            return;
+            Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Text }, (asyncResult) => {
+                if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+                    console.log("Action failed with error: " + asyncResult.error.message);
+                    return;
+                }
+            });
         }
     });
 }
@@ -75,7 +75,7 @@ function parseHyperlinks(text) {
     var urlRegex = /\((https?:\/\/[^)]+)\)/g;
     return text.replace(urlRegex, '<a href="$1">$1</a>');
 }
-
+// * Main funktion som anropas. * //
 function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
@@ -100,12 +100,18 @@ function addLocationToAppointmentBody(event) {
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation);
             if (!(officeLocation.includes("https://") || officeLocation.includes("http://"))) {
-                console.log("This room has no URL location. Contact IT support.")
+                item.notificationMessages.addAsync("locationEmpty", {
+                    type: "errorMessage",
+                    message: "This room has no URL location. Contact IT support."
+                });
                 event.completed({ allowEvent: false, errorMessage: "Room has no URL." });
                 return;
             }
             if (officeLocation === "") {
-                console.log("This room has no data in its location field. Contact IT support");
+                item.notificationMessages.addAsync("locationEmpty", {
+                    type: "errorMessage",
+                    message: "This room has no data in its location field. Contact IT support."
+                });
                 event.completed({ allowEvent: false, errorMessage: "Room has no containing data in its location attribute." });
                 return;
             }
