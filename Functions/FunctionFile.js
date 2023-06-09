@@ -80,16 +80,23 @@ function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
 
-    item.location.getAsync((result) => {
+    item.location.getAsync({ asyncContext: event }, (result) => {
+        let event = asyncResult.asyncContext;
         if (result.status !== Office.AsyncResultStatus.Succeeded) {
             console.error(`Action failed with message ${result.error.message}`);
+            event.completed({ allowEvent: false, errorMessage: "Failed to get the appointment's location." });
             return;
         }
+        if (result.value === "") {
+            event.completed({ allowEvent: false, errorMessage: "Don't forget to add a meeting location." });
+            return;
+        }
+
         console.log(`Appointment location: ${result.value}`);
         sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation),
                 SetLocationToAppointmentBody(officeLocation);
-            event.completed();
+            event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
         });
