@@ -88,7 +88,7 @@ function addLocationToAppointmentBody(event) {
             return;
         }
         if (result.value === "") {
-            item.notificationMessages.addSync("locationEmpty", {
+            item.notificationMessages.addAsync("locationEmpty", {
                 type: "errorMessage",
                 message: "Please enter a location for the appointment."
             });
