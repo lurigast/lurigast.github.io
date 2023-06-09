@@ -88,14 +88,29 @@ function addLocationToAppointmentBody(event) {
             return;
         }
         if (result.value === "") {
+            item.notificationMessages.addSync("locationEmpty", {
+                type: "errorMessage",
+                message: "Please enter a location for the appointment."
+            });
             event.completed({ allowEvent: false, errorMessage: "Don't forget to add a meeting location." });
             return;
         }
 
         console.log(`Appointment location: ${result.value}`);
         sendRequest(result.value).then((officeLocation) => {
-            console.log("Office Location: ", officeLocation),
-                SetLocationToAppointmentBody(officeLocation);
+            console.log("Office Location: ", officeLocation);
+            if (!officeLocation.includes("https://")) {
+                console.log("This room has no URL location. Contact IT support.")
+                event.completed({ allowEvent: false, errorMessage: "Room has no URL." });
+                return;
+            }
+            if (officeLocation === "") {
+                console.log("This room has no data in its location field. Contact IT support");
+                event.completed({ allowEvent: false, errorMessage: "Room has no containing data in its location attribute." });
+                return;
+            }
+
+            SetLocationToAppointmentBody(officeLocation);
             event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
