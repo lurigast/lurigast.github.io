@@ -71,6 +71,7 @@ async function SetLocationToAppointmentBody(LocationToBody) {
             });
         }
     });
+    return Promise.resolve();
 }
 
 function parseHyperlinks(text) {
