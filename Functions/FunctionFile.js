@@ -45,7 +45,7 @@ function sendRequest(roomName) {
 
 function SetLocationToAppointmentBody(LocationToBody) {
 
-    let parsedText = parseHyperlinks(LocationToBody);
+    
 
     console.log("parsedTest1: "+parsedText);
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
@@ -64,6 +64,7 @@ function SetLocationToAppointmentBody(LocationToBody) {
         }
         if (asyncResult.value == Office.CoercionType.Html) {
             console.log("im here#1");
+            let parsedText = parseHyperlinks(LocationToBody);
             Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
                 if (asyncResult.status === Office.AsyncResultStatus.Failed) {
                     console.log("Action failed with error: " + asyncResult.error.message);
