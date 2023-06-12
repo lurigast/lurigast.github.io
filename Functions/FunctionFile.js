@@ -119,7 +119,7 @@ function addLocationToAppointmentBody(event) {
             }
 
             SetLocationToAppointmentBody(officeLocation);
-            event.completed({ allowEvent: true });
+            // event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
         });
