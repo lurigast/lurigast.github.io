@@ -46,14 +46,17 @@ function sendRequest(roomName) {
 function SetLocationToAppointmentBody(LocationToBody) {
 
     let parsedText = parseHyperlinks(LocationToBody);
-    console.log("parsedTest: "+parsedText);
+
+    console.log("parsedTest1: "+parsedText);
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
         if (asyncResult.status === Office.AsyncResultStatus.Failed) {
             console.log("Action failed with error: " + asyncResult.error.message);
             return;
         }
         console.log("bodyFormat: " + asyncResult.value);
-        if (asyncResult.value == 'html') {
+        console.log("parsedText2: " + parsedText);
+
+        if (asyncResult.value == Office.CoercionType.Html) {
             Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
                 if (asyncResult.status === Office.AsyncResultStatus.Failed) {
                     console.log("Action failed with error: " + asyncResult.error.message);
