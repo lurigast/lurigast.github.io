@@ -55,8 +55,9 @@ function SetLocationToAppointmentBody(LocationToBody) {
         }
         console.log("bodyFormat: " + asyncResult.value);
         console.log("parsedText2: " + parsedText);
-
-        if (asyncResult.value == Office.CoercionType.Html) {
+        console.log("coercionType:" + Office.CoercionType.Html);
+        if (asyncResult.value == "html") {
+            console.log("im here#1");
             Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
                 if (asyncResult.status === Office.AsyncResultStatus.Failed) {
                     console.log("Action failed with error: " + asyncResult.error.message);
@@ -64,6 +65,7 @@ function SetLocationToAppointmentBody(LocationToBody) {
                 }
             });
         } else {
+            console.log("Im here#2");
             Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Text }, (asyncResult) => {
                 if (asyncResult.status === Office.AsyncResultStatus.Failed) {
                     console.log("Action failed with error: " + asyncResult.error.message);
