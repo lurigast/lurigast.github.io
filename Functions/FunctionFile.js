@@ -46,7 +46,7 @@ function sendRequest(roomName) {
 function SetLocationToAppointmentBody(LocationToBody) {
 
     let parsedText = parseHyperlinks(LocationToBody);
-
+    console.log("parsedTest: "+parsedText);
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
         if (asyncResult.status === Office.AsyncResultStatus.Failed) {
             console.log("Action failed with error: " + asyncResult.error.message);
