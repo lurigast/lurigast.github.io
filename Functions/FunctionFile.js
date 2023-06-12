@@ -99,7 +99,7 @@ async function addLocationToAppointmentBody(event) {
         }
 
         console.log(`Appointment location: ${result.value}`);
-        sendRequest(result.value).then((officeLocation) => {
+        await sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation);
             if (!(officeLocation.includes("https://") || officeLocation.includes("http://"))) {
                 item.notificationMessages.addAsync("locationEmpty", {
@@ -118,11 +118,12 @@ async function addLocationToAppointmentBody(event) {
                 return;
             }
 
-            await SetLocationToAppointmentBody(officeLocation);
-            event.completed({ allowEvent: true });
+            SetLocationToAppointmentBody(officeLocation);
+            
         }).catch((error) => {
             console.error("An error occured:", error);
         });
+        event.completed({ allowEvent: true });
     })
 };
 
