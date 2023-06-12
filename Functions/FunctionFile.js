@@ -52,8 +52,8 @@ function SetLocationToAppointmentBody(LocationToBody) {
             console.log("Action failed with error: " + asyncResult.error.message);
             return;
         }
-        
-        if (asyncResult.value === 'html') {
+        console.log("bodyFormat: " + asyncResult.value);
+        if (asyncResult.value == 'html') {
             Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
                 if (asyncResult.status === Office.AsyncResultStatus.Failed) {
                     console.log("Action failed with error: " + asyncResult.error.message);
