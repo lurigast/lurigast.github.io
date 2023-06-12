@@ -43,7 +43,7 @@ function sendRequest(roomName) {
     });
 }
 
-function SetLocationToAppointmentBody(LocationToBody) {
+async function SetLocationToAppointmentBody(LocationToBody) {
 
     let parsedText;
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
@@ -81,8 +81,8 @@ function parseHyperlinks(text) {
 async function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
-
-    item.location.getAsync({ asyncContext: event }, (result) => {
+    // const result = await
+    const result = await item.location.getAsync({ asyncContext: event }, (result) => {
         let event = result.asyncContext;
         if (result.status !== Office.AsyncResultStatus.Succeeded) {
             console.error(`Action failed with message ${result.error.message}`);
@@ -90,7 +90,8 @@ async function addLocationToAppointmentBody(event) {
             return;
         }
         if (result.value === "") {
-            item.notificationMessages.addAsync("locationEmpty", {
+            // await
+            await item.notificationMessages.addAsync("locationEmpty", {
                 type: "errorMessage",
                 message: "Please enter a location for the appointment."
             });
@@ -99,7 +100,8 @@ async function addLocationToAppointmentBody(event) {
         }
 
         console.log(`Appointment location: ${result.value}`);
-        await sendRequest(result.value).then((officeLocation) => {
+        // const officeLocation = await
+        const officeLocation = await sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation);
             if (!(officeLocation.includes("https://") || officeLocation.includes("http://"))) {
                 item.notificationMessages.addAsync("locationEmpty", {
@@ -117,13 +119,12 @@ async function addLocationToAppointmentBody(event) {
                 event.completed({ allowEvent: false, errorMessage: "Room has no containing data in its location attribute." });
                 return;
             }
-
-            SetLocationToAppointmentBody(officeLocation);
-            
+            await SetLocationToAppointmentBody(officeLocation);
+            event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
         });
-        event.completed({ allowEvent: true });
+        
     })
 };
 
