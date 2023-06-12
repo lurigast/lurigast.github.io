@@ -120,7 +120,8 @@ async function addLocationToAppointmentBody(event) {
                 event.completed({ allowEvent: false, errorMessage: "Room has no containing data in its location attribute." });
                 return;
             }
-            await SetLocationToAppointmentBody(officeLocation);
+            const locationResult = await SetLocationToAppointmentBody(officeLocation);
+            console.log(locationResult);
             event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
