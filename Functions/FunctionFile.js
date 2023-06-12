@@ -45,9 +45,9 @@ function sendRequest(roomName) {
 
 function SetLocationToAppointmentBody(LocationToBody) {
 
-    
+    let parsedText;
 
-    console.log("parsedTest1: "+parsedText);
+    console.log("parsedTest1: " + parsedText);
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
         if (asyncResult.status === Office.AsyncResultStatus.Failed) {
             console.log("Action failed with error: " + asyncResult.error.message);
@@ -64,7 +64,7 @@ function SetLocationToAppointmentBody(LocationToBody) {
         }
         if (asyncResult.value == Office.CoercionType.Html) {
             console.log("im here#1");
-            let parsedText = parseHyperlinks(LocationToBody);
+            parsedText = parseHyperlinks(LocationToBody);
             Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Html }, (asyncResult) => {
                 if (asyncResult.status === Office.AsyncResultStatus.Failed) {
                     console.log("Action failed with error: " + asyncResult.error.message);
@@ -129,7 +129,7 @@ function addLocationToAppointmentBody(event) {
             }
 
             SetLocationToAppointmentBody(officeLocation);
-            event.completed({ allowEvent: true });
+            // event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
         });
