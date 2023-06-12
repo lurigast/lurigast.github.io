@@ -43,7 +43,7 @@ function sendRequest(roomName) {
     });
 }
 
-async function SetLocationToAppointmentBody(LocationToBody) {
+function SetLocationToAppointmentBody(LocationToBody) {
 
     let parsedText;
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
