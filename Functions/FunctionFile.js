@@ -78,7 +78,7 @@ function parseHyperlinks(text) {
     return text.replace(urlRegex, '<a href="$1">$1</a>');
 }
 // * Main funktion som anropas. * //
-function addLocationToAppointmentBody(event) {
+async function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
 
@@ -118,8 +118,8 @@ function addLocationToAppointmentBody(event) {
                 return;
             }
 
-            SetLocationToAppointmentBody(officeLocation);
-            // event.completed({ allowEvent: true });
+            await SetLocationToAppointmentBody(officeLocation);
+            event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
         });
