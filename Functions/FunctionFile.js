@@ -43,7 +43,7 @@ function sendRequest(roomName) {
     });
 }
 
-function SetLocationToAppointmentBody(LocationToBody) {
+async function SetLocationToAppointmentBody(LocationToBody) {
 
     let parsedText;
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
@@ -82,7 +82,7 @@ async function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
     // const result = await
-    const result = await item.location.getAsync({ asyncContext: event }, (result) => {
+    const result = item.location.getAsync({ asyncContext: event }, (result) => {
         let event = result.asyncContext;
         if (result.status !== Office.AsyncResultStatus.Succeeded) {
             console.error(`Action failed with message ${result.error.message}`);
@@ -91,7 +91,7 @@ async function addLocationToAppointmentBody(event) {
         }
         if (result.value === "") {
             // await
-            await item.notificationMessages.addAsync("locationEmpty", {
+            item.notificationMessages.addAsync("locationEmpty", {
                 type: "errorMessage",
                 message: "Please enter a location for the appointment."
             });
@@ -101,7 +101,7 @@ async function addLocationToAppointmentBody(event) {
 
         console.log(`Appointment location: ${result.value}`);
         // const officeLocation = await
-        const officeLocation = await sendRequest(result.value).then((officeLocation) => {
+        sendRequest(result.value).then((officeLocation) => {
             console.log("Office Location: ", officeLocation);
             if (!(officeLocation.includes("https://") || officeLocation.includes("http://"))) {
                 item.notificationMessages.addAsync("locationEmpty", {
