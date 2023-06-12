@@ -43,7 +43,7 @@ function sendRequest(roomName) {
     });
 }
 
-async function SetLocationToAppointmentBody(LocationToBody) {
+function SetLocationToAppointmentBody(LocationToBody) {
 
     let parsedText;
     Office.context.mailbox.item.body.getTypeAsync((asyncResult) => {
@@ -51,7 +51,6 @@ async function SetLocationToAppointmentBody(LocationToBody) {
             console.log("Action failed with error: " + asyncResult.error.message);
             return;
         }
-        
         if (asyncResult.value == Office.CoercionType.Html) {
             
             parsedText = parseHyperlinks(LocationToBody);
@@ -62,7 +61,6 @@ async function SetLocationToAppointmentBody(LocationToBody) {
                 }
             });
         } else {
-            
             Office.context.mailbox.item.body.prependAsync(parsedText, { coercionType: Office.CoercionType.Text }, (asyncResult) => {
                 if (asyncResult.status === Office.AsyncResultStatus.Failed) {
                     console.log("Action failed with error: " + asyncResult.error.message);
@@ -71,7 +69,6 @@ async function SetLocationToAppointmentBody(LocationToBody) {
             });
         }
     });
-    return Promise.resolve();
 }
 
 function parseHyperlinks(text) {
@@ -79,11 +76,11 @@ function parseHyperlinks(text) {
     return text.replace(urlRegex, '<a href="$1">$1</a>');
 }
 // * Main funktion som anropas. * //
-async function addLocationToAppointmentBody(event) {
+function addLocationToAppointmentBody(event) {
 
     var item = Office.context.mailbox.item;
     // const result = await
-    const result = item.location.getAsync({ asyncContext: event }, (result) => {
+    item.location.getAsync({ asyncContext: event }, (result) => {
         let event = result.asyncContext;
         if (result.status !== Office.AsyncResultStatus.Succeeded) {
             console.error(`Action failed with message ${result.error.message}`);
@@ -120,9 +117,8 @@ async function addLocationToAppointmentBody(event) {
                 event.completed({ allowEvent: false, errorMessage: "Room has no containing data in its location attribute." });
                 return;
             }
-            const locationResult = await SetLocationToAppointmentBody(officeLocation);
-            console.log(locationResult);
-            event.completed({ allowEvent: true });
+            SetLocationToAppointmentBody(officeLocation);
+            // event.completed({ allowEvent: true });
         }).catch((error) => {
             console.error("An error occured:", error);
         });
