@@ -1,40 +1,44 @@
 /*
-	Copyright (c) Microsoft Corporation.  All rights reserved.
-*/
-
-/*
-	Your use of this file is governed by the Microsoft Services Agreement http://go.microsoft.com/fwlink/?LinkId=266419.
-*/
-
-/*
-* @overview es6-promise - a tiny implementation of Promises/A+.
-* @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
-* @license   Licensed under MIT license
-*            See https://raw.githubusercontent.com/jakearchibald/es6-promise/master/LICENSE
-* @version   2.3.0
-*/
-
-
-// Sources:
-// osfweb: 16.0\13927.10000
-// runtime: 16.0\13927.10000
-// core: 16.0\13927.10000
-// host: 16.0\13927.10000
-
-
-
+ * Office JavaScript API library
+ *
+ * Copyright (c) Microsoft Corporation.  All rights reserved.
+ *
+ * Your use of this file is governed by the Microsoft Services Agreement http://go.microsoft.com/fwlink/?LinkId=266419.
+ *
+ * This file also contains the following Promise implementation (with a few small modifications):
+ *      * @overview es6-promise - a tiny implementation of Promises/A+.
+ *      * @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
+ *      * @license   Licensed under MIT license
+ *      *            See https://raw.githubusercontent.com/jakearchibald/es6-promise/master/LICENSE
+ *      * @version   2.3.0
+ */
 if (typeof OSFPerformance !== "undefined") {
     OSFPerformance.hostInitializationStart = OSFPerformance.now();
 }
+/* Excel Mac specific API library */
+
+/*
+	Copyright (c) Microsoft Corporation.  All rights reserved.
+*/
+
+
+/*
+    Your use of this file is governed by the Microsoft Services Agreement http://go.microsoft.com/fwlink/?LinkId=266419.
+
+    This file also contains the following Promise implementation (with a few small modifications):
+        * @overview es6-promise - a tiny implementation of Promises/A+.
+        * @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
+        * @license   Licensed under MIT license
+        *            See https://raw.githubusercontent.com/jakearchibald/es6-promise/master/LICENSE
+        * @version   2.3.0
+*/
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b)
-                if (b.hasOwnProperty(p))
-                    d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
         return extendStatics(d, b);
-    };
+    }
     return function (d, b) {
         extendStatics(d, b);
         function __() { this.constructor = d; }
@@ -157,6 +161,9 @@ var OSF = OSF || {};
             }
             return keyList;
         };
+        SafeStorage.prototype.isLocalStorageAvailable = function () {
+            return (this._internalStorage != null);
+        };
         return SafeStorage;
     }());
     OfficeExt.SafeStorage = SafeStorage;
@@ -169,16 +176,15 @@ OSF.TestFlightStart = 1000;
 OSF.TestFlightEnd = 1009;
 OSF.FlightNames = {
     UseOriginNotUrl: 0,
-    CheckReceiverOrigin: 1,
     AddinEnforceHttps: 2,
     FirstPartyAnonymousProxyReadyCheckTimeout: 6,
     AddinRibbonIdAllowUnknown: 9,
     ManifestParserDevConsoleLog: 15,
-    AllowStorageAccessByUserActivationOnIFrame: 16,
-    AddInsInSupportedIrmDocsIsEnabled: 17,
     AddinActionDefinitionHybridMode: 18,
     UseActionIdForUILessCommand: 20,
     RequirementSetRibbonApiOnePointTwo: 21,
+    SetFocusToTaskpaneIsEnabled: 22,
+    ShortcutInfoArrayInUserPreferenceData: 23,
     OSFTestFlight1000: OSF.TestFlightStart,
     OSFTestFlight1001: OSF.TestFlightStart + 1,
     OSFTestFlight1002: OSF.TestFlightStart + 2,
@@ -190,7 +196,25 @@ OSF.FlightNames = {
     OSFTestFlight1008: OSF.TestFlightStart + 8,
     OSFTestFlight1009: OSF.TestFlightEnd
 };
+OSF.TrustUXFlightValues = {
+    TrustUXControlA: 0,
+    TrustUXExperimentB: 1,
+    TrustUXExperimentC: 2
+};
+OSF.FlightTreatmentNames = {
+    AddinDialogIFrameContentWindowKillSwitch: "Microsoft.Office.SharedOnline.AddinDialogIFrameContentWindowKillSwitch",
+    AddinTrustUXImprovement: "Microsoft.Office.SharedOnline.AddinTrustUXImprovement",
+    AllowStorageAccessByUserActivationOnIFrameCheck: "Microsoft.Office.SharedOnline.AllowStorageAccessByUserActivationOnIFrameCheck",
+    BlockAutoOpenAddInIfStoreDisabled: "Microsoft.Office.SharedOnline.BlockAutoOpenAddInIfStoreDisabled",
+    CheckProxyIsReadyRetry: "Microsoft.Office.SharedOnline.OEP.CheckProxyIsReadyRetry",
+    InsertionDialogFixesEnabled: "Microsoft.Office.SharedOnline.InsertionDialogFixesEnabled",
+    TeachingUIForPrivateCatelogEnabled: "Microsoft.Office.SharedOnline.TeachingUIForPrivateCatelogEnabled",
+    WopiPreinstalledAddInsEnabled: "Microsoft.Office.SharedOnline.WopiPreinstalledAddInsEnabled",
+    WopiUseNewActivate: "Microsoft.Office.SharedOnline.WopiUseNewActivate",
+    MosManifestEnabled: "Microsoft.Office.SharedOnline.OEP.MosManifest"
+};
 OSF.Flights = [];
+OSF.IntFlights = {};
 OSF.Settings = {};
 OSF.WindowNameItemKeys = {
     BaseFrameName: "baseFrameName",
@@ -373,7 +397,15 @@ OSF.OUtil = (function () {
                             currentCallback();
                         }
                     };
-                    var onLoadError = function OSF_OUtil_loadScript$onLoadError() {
+                    var onLoadTimeOut = function OSF_OUtil_loadScript$onLoadTimeOut() {
+                        if (window.navigator.userAgent.indexOf("Trident") > 0) {
+                            onLoadError(null);
+                        }
+                        else {
+                            onLoadError(new Event("Script load timed out"));
+                        }
+                    };
+                    var onLoadError = function OSF_OUtil_loadScript$onLoadError(errorEvent) {
                         delete _loadedScripts[url];
                         if (_loadedScriptEntry.timer != null) {
                             clearTimeout(_loadedScriptEntry.timer);
@@ -382,7 +414,7 @@ OSF.OUtil = (function () {
                         var pendingCallbackCount = _loadedScriptEntry.pendingCallbacks.length;
                         for (var i = 0; i < pendingCallbackCount; i++) {
                             var currentCallback = _loadedScriptEntry.pendingCallbacks.shift();
-                            currentCallback();
+                            currentCallback(errorEvent);
                         }
                     };
                     if (script.readyState) {
@@ -398,7 +430,7 @@ OSF.OUtil = (function () {
                     }
                     script.onerror = onLoadError;
                     timeoutInMs = timeoutInMs || _defaultScriptLoadingTimeout;
-                    _loadedScriptEntry.timer = setTimeout(onLoadError, timeoutInMs);
+                    _loadedScriptEntry.timer = setTimeout(onLoadTimeOut, timeoutInMs);
                     script.setAttribute("crossOrigin", "anonymous");
                     script.src = url;
                     doc.getElementsByTagName("head")[0].appendChild(script);
@@ -534,6 +566,29 @@ OSF.OUtil = (function () {
                 ((typeof (settings[settingName]) === "string" && settings[settingName].toUpperCase() === 'TRUE') ||
                     (typeof (settings[settingName]) === "boolean" && settings[settingName])));
             return result !== undefined ? result : false;
+        },
+        getIntFromDictionary: function OSF_OUtil$getIntFromDictionary(settings, settingName) {
+            if (settings && settingName && settings[settingName] !== undefined && (typeof settings[settingName] === "string")) {
+                return parseInt(settings[settingName]);
+            }
+            else {
+                return NaN;
+            }
+        },
+        pushIntFlight: function OSF_OUtil$pushIntFlight(flight, flightValue) {
+            if (!(flight in OSF.IntFlights)) {
+                OSF.IntFlights[flight] = flightValue;
+                return true;
+            }
+            return false;
+        },
+        getIntFlight: function OSF_OUtil$getIntFlight(flight) {
+            if (OSF.IntFlights && (flight in OSF.IntFlights)) {
+                return OSF.IntFlights[flight];
+            }
+            else {
+                return NaN;
+            }
         },
         parseFlightsFromWindowName: function OSF_OUtil$parseFlightsFromWindowName(skipSessionStorage, windowName) {
             return OSF.OUtil.parseArrayWithDefault(OSF.OUtil.parseInfoFromWindowName(skipSessionStorage, windowName, OSF.WindowNameItemKeys.Flights));
@@ -783,10 +838,6 @@ OSF.OUtil = (function () {
                 element["on" + eventName] = null;
             }
         },
-        getCookieValue: function OSF_OUtil$getCookieValue(cookieName) {
-            var tmpCookieString = RegExp(cookieName + "[^;]+").exec(document.cookie);
-            return tmpCookieString.toString().replace(/^[^=]+./, "");
-        },
         xhrGet: function OSF_OUtil$xhrGet(url, onSuccess, onError) {
             var xmlhttp;
             try {
@@ -795,28 +846,6 @@ OSF.OUtil = (function () {
                     if (xmlhttp.readyState == 4) {
                         if (xmlhttp.status == 200) {
                             onSuccess(xmlhttp.responseText);
-                        }
-                        else {
-                            onError(xmlhttp.status);
-                        }
-                    }
-                };
-                xmlhttp.open("GET", url, true);
-                xmlhttp.send();
-            }
-            catch (ex) {
-                onError(ex);
-            }
-        },
-        xhrGetFull: function OSF_OUtil$xhrGetFull(url, oneDriveFileName, onSuccess, onError) {
-            var xmlhttp;
-            var requestedFileName = oneDriveFileName;
-            try {
-                xmlhttp = new XMLHttpRequest();
-                xmlhttp.onreadystatechange = function () {
-                    if (xmlhttp.readyState == 4) {
-                        if (xmlhttp.status == 200) {
-                            onSuccess(xmlhttp, requestedFileName);
                         }
                         else {
                             onError(xmlhttp.status);
@@ -1019,9 +1048,7 @@ OSF.OUtil = (function () {
             return url;
         },
         parseUrl: function OSF_Outil$parseUrl(url, enforceHttps) {
-            if (enforceHttps === void 0) {
-                enforceHttps = false;
-            }
+            if (enforceHttps === void 0) { enforceHttps = false; }
             if (typeof url === "undefined" || !url) {
                 return undefined;
             }
@@ -1581,6 +1608,7 @@ Microsoft.Office.WebExtension.Parameters = {
     PromptBeforeOpen: "promptBeforeOpen",
     EnforceAppDomain: "enforceAppDomain",
     UrlNoHostInfo: "urlNoHostInfo",
+    TargetOrigin: "targetOrigin",
     AppCommandInvocationCompletedData: "appCommandInvocationCompletedData",
     Base64: "base64",
     FormId: "formId"
@@ -1839,6 +1867,9 @@ OSF.DDA.ErrorCodeManager = (function () {
             ooeEndUserIgnore: 12009,
             ooeNotUILessDialog: 12010,
             ooeCrossZone: 12011,
+            ooeModalDialogOpen: 12012,
+            ooeDocumentIsInactive: 12013,
+            ooeDialogParentIsMinimized: 12014,
             ooeNotSSOAgave: 13000,
             ooeSSOUserNotSignedIn: 13001,
             ooeSSOUserAborted: 13002,
@@ -1947,6 +1978,9 @@ OSF.DDA.ErrorCodeManager = (function () {
             _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeRequireHTTPS] = { name: stringNS.L_DisplayDialogError, message: stringNS.L_DialogRequireHTTPS };
             _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeEndUserIgnore] = { name: stringNS.L_DisplayDialogError, message: stringNS.L_UserClickIgnore };
             _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeCrossZone] = { name: stringNS.L_DisplayDialogError, message: stringNS.L_NewWindowCrossZoneErrorString };
+            _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeModalDialogOpen] = { name: stringNS.L_DisplayDialogError, message: stringNS.L_ModalDialogOpen };
+            _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeDocumentIsInactive] = { name: stringNS.L_DisplayDialogError, message: stringNS.L_DocumentIsInactive };
+            _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeDialogParentIsMinimized] = { name: stringNS.L_DisplayDialogError, message: stringNS.L_DialogParentIsMinimized };
             _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeNotSSOAgave] = { name: stringNS.L_APINotSupported, message: stringNS.L_InvalidSSOAddinMessage };
             _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeSSOUserNotSignedIn] = { name: stringNS.L_UserNotSignedIn, message: stringNS.L_UserNotSignedIn };
             _errorMappings[OSF.DDA.ErrorCodeManager.errorCodes.ooeSSOUserAborted] = { name: stringNS.L_UserAborted, message: stringNS.L_UserAbortedMessage };
@@ -2044,16 +2078,26 @@ OSF.DDA.ErrorCodeManager = (function () {
             return DefaultSetRequirement;
         }());
         Requirement.DefaultSetRequirement = DefaultSetRequirement;
-        var DefaultDialogSetRequirement = (function (_super) {
-            __extends(DefaultDialogSetRequirement, _super);
-            function DefaultDialogSetRequirement() {
+        var DefaultRequiredDialogSetRequirement = (function (_super) {
+            __extends(DefaultRequiredDialogSetRequirement, _super);
+            function DefaultRequiredDialogSetRequirement() {
                 return _super.call(this, {
                     "dialogapi": 1.1
                 }) || this;
             }
-            return DefaultDialogSetRequirement;
+            return DefaultRequiredDialogSetRequirement;
         }(DefaultSetRequirement));
-        Requirement.DefaultDialogSetRequirement = DefaultDialogSetRequirement;
+        Requirement.DefaultRequiredDialogSetRequirement = DefaultRequiredDialogSetRequirement;
+        var DefaultOptionalDialogSetRequirement = (function (_super) {
+            __extends(DefaultOptionalDialogSetRequirement, _super);
+            function DefaultOptionalDialogSetRequirement() {
+                return _super.call(this, {
+                    "dialogorigin": 1.1
+                }) || this;
+            }
+            return DefaultOptionalDialogSetRequirement;
+        }(DefaultSetRequirement));
+        Requirement.DefaultOptionalDialogSetRequirement = DefaultOptionalDialogSetRequirement;
         var ExcelClientDefaultSetRequirement = (function (_super) {
             __extends(ExcelClientDefaultSetRequirement, _super);
             function ExcelClientDefaultSetRequirement() {
@@ -2378,16 +2422,31 @@ OSF.DDA.ErrorCodeManager = (function () {
                 return defaultRequirementMatrix;
             };
             RequirementsMatrixFactory.getDefaultDialogRequirementMatrix = function (appContext) {
-                var defaultRequirementMatrix = undefined;
+                var setRequirements = undefined;
                 var clientRequirement = appContext.get_dialogRequirementMatrix();
                 if (clientRequirement != undefined && clientRequirement.length > 0 && typeof (JSON) !== "undefined") {
                     var matrixItem = JSON.parse(appContext.get_requirementMatrix().toLowerCase());
-                    defaultRequirementMatrix = new RequirementMatrix(new DefaultSetRequirement(matrixItem));
+                    setRequirements = new DefaultSetRequirement(matrixItem);
                 }
                 else {
-                    defaultRequirementMatrix = new RequirementMatrix(new DefaultDialogSetRequirement());
+                    setRequirements = new DefaultRequiredDialogSetRequirement();
+                    var mainRequirement = appContext.get_requirementMatrix();
+                    if (mainRequirement != undefined && mainRequirement.length > 0 && typeof (JSON) !== "undefined") {
+                        var matrixItem = JSON.parse(mainRequirement.toLowerCase());
+                        for (var name in setRequirements._sets) {
+                            if (matrixItem.hasOwnProperty(name)) {
+                                setRequirements._sets[name] = matrixItem[name];
+                            }
+                        }
+                        var dialogOptionalSetRequirement = new DefaultOptionalDialogSetRequirement();
+                        for (var name in dialogOptionalSetRequirement._sets) {
+                            if (matrixItem.hasOwnProperty(name)) {
+                                setRequirements._sets[name] = matrixItem[name];
+                            }
+                        }
+                    }
                 }
-                return defaultRequirementMatrix;
+                return new RequirementMatrix(setRequirements);
             };
             RequirementsMatrixFactory.getClientFullVersionString = function (appContext) {
                 var appMinorVersion = appContext.get_appMinorVersion();
@@ -3701,9 +3760,10 @@ OSF.DDA.DispIdHost.Facade = function OSF_DDA_DispIdHost_Facade(getDelegateMethod
             onException(ex, asyncMethodCall, suppliedArguments, callArgs);
         }
     };
-    this[OSF.DDA.DispIdHost.Methods.OpenDialog] = function OSF_DDA_DispIdHost_Facade$OpenDialog(suppliedArguments, eventDispatch, caller) {
+    this[OSF.DDA.DispIdHost.Methods.OpenDialog] = function OSF_DDA_DispIdHost_Facade$OpenDialog(suppliedArguments, eventDispatch, caller, isModal) {
         var callArgs;
         var targetId;
+        var asyncMethodCall = null;
         var dialogMessageEvent = Microsoft.Office.WebExtension.EventType.DialogMessageReceived;
         var dialogOtherEvent = Microsoft.Office.WebExtension.EventType.DialogEventReceived;
         function onEnsureRegistration(status) {
@@ -3726,17 +3786,27 @@ OSF.DDA.DispIdHost.Facade = function OSF_DDA_DispIdHost_Facade(getDelegateMethod
             if (dialogMessageEvent == undefined || dialogOtherEvent == undefined) {
                 onEnsureRegistration(OSF.DDA.ErrorCodeManager.ooeOperationNotSupported);
             }
-            if (OSF.DDA.AsyncMethodNames.DisplayDialogAsync == null) {
-                onEnsureRegistration(OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError);
-                return;
+            if (!isModal) {
+                if (OSF.DDA.AsyncMethodNames.DisplayDialogAsync == null) {
+                    onEnsureRegistration(OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError);
+                    return;
+                }
+                asyncMethodCall = OSF.DDA.AsyncMethodCalls[OSF.DDA.AsyncMethodNames.DisplayDialogAsync.id];
             }
-            var asyncMethodCall = OSF.DDA.AsyncMethodCalls[OSF.DDA.AsyncMethodNames.DisplayDialogAsync.id];
+            else {
+                if (OSF.DDA.AsyncMethodNames.DisplayModalDialogAsync == null) {
+                    onEnsureRegistration(OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError);
+                    return;
+                }
+                asyncMethodCall = OSF.DDA.AsyncMethodCalls[OSF.DDA.AsyncMethodNames.DisplayModalDialogAsync.id];
+            }
             callArgs = asyncMethodCall.verifyAndExtractCall(suppliedArguments, caller, eventDispatch);
             var dispId = dispIdMap[dialogMessageEvent];
             var delegateMethods = getDelegateMethods(dialogMessageEvent);
             var invoker = delegateMethods[OSF.DDA.DispIdHost.Delegates.OpenDialog] != undefined ?
                 delegateMethods[OSF.DDA.DispIdHost.Delegates.OpenDialog] :
                 delegateMethods[OSF.DDA.DispIdHost.Delegates.RegisterEventAsync];
+            callArgs["isModal"] = isModal;
             targetId = JSON.stringify(callArgs);
             if (!OSF.DialogShownStatus.hasDialogShown) {
                 eventDispatch.clearQueuedEvent(dialogMessageEvent);
@@ -4662,7 +4732,12 @@ OSF.DDA.DispIdHost.getClientDelegateMethods = function (actionId) {
     delegateMethods[OSF.DDA.DispIdHost.Delegates.SendMessage] = OSF.DDA.SafeArray.Delegate.sendMessage;
     if (OSF.DDA.AsyncMethodNames.RefreshAsync && actionId == OSF.DDA.AsyncMethodNames.RefreshAsync.id) {
         var readSerializedSettings = function (hostCallArgs, onCalling, onReceiving) {
-            return OSF.DDA.ClientSettingsManager.read(onCalling, onReceiving);
+            if (typeof (OSF.DDA.ClientSettingsManager.refresh) === "function") {
+                return OSF.DDA.ClientSettingsManager.refresh(onCalling, onReceiving);
+            }
+            else {
+                return OSF.DDA.ClientSettingsManager.read(onCalling, onReceiving);
+            }
         };
         delegateMethods[OSF.DDA.DispIdHost.Delegates.ExecuteAsync] = OSF.DDA.ClientSettingsManager.getSettingsExecuteMethod(readSerializedSettings);
     }
@@ -4903,7 +4978,12 @@ var OSFWebkit;
         ScriptMessaging.agaveHostEventCallback = agaveHostEventCallback;
         function GetScriptMessenger() {
             if (scriptMessenger == null) {
-                scriptMessenger = new WebkitScriptMessaging("OSF.ScriptMessaging.agaveHostCallback", "OSF.ScriptMessaging.agaveHostEventCallback");
+                if (HostScriptMessaging.IsSupportedByHost()) {
+                    scriptMessenger = new HostScriptMessaging();
+                }
+                else {
+                    scriptMessenger = new WebkitScriptMessaging("OSF.ScriptMessaging.agaveHostCallback", "OSF.ScriptMessaging.agaveHostEventCallback");
+                }
             }
             return scriptMessenger;
         }
@@ -4915,6 +4995,70 @@ var OSFWebkit;
                 this.handler = handler;
             }
             return EventHandlerCallback;
+        }());
+        var HostScriptMessaging = (function () {
+            function HostScriptMessaging() {
+                this.eventHandlers = [];
+            }
+            HostScriptMessaging.IsSupportedByHost = function () {
+                return !!window._osfHostAPI;
+            };
+            HostScriptMessaging.prototype.invokeMethod = function (handlerName, methodId, params, callback) {
+                var internalCallback = function (params) {
+                    var callbacksDone = callback(params);
+                    if (callbacksDone === undefined || callbacksDone === true) {
+                        return true;
+                    }
+                    return false;
+                };
+                window._osfHostAPI(handlerName, this.constructMessagingArgs(methodId, params), internalCallback);
+            };
+            HostScriptMessaging.prototype.registerEvent = function (handlerName, methodId, dispId, targetId, handler, callback) {
+                var hostArgs = {
+                    id: dispId,
+                    targetId: targetId
+                };
+                var internalCallback = function (params) {
+                    callback(params);
+                    return true;
+                };
+                var internalEventHandler = function (params) {
+                    handler(params);
+                    return false;
+                };
+                var callbackInfo = window._osfHostRegisterEvent(handlerName, this.constructMessagingArgs(methodId, hostArgs), internalEventHandler, internalCallback);
+                this.eventHandlers.push({ targetId: targetId, dispId: dispId, callbackId: callbackInfo.eventCallbackId });
+            };
+            HostScriptMessaging.prototype.unregisterEvent = function (handlerName, methodId, dispId, targetId, callback) {
+                var hostArgs = {
+                    id: dispId,
+                    targetId: targetId
+                };
+                var internalCallback = function (params) {
+                    callback(params);
+                    return true;
+                };
+                window._osfHostAPI(handlerName, this.constructMessagingArgs(methodId, hostArgs), internalCallback);
+                for (var i = this.eventHandlers.length - 1; i >= 0; i--) {
+                    var handler = this.eventHandlers[i];
+                    if (handler.dispId === dispId && handler.targetId === targetId) {
+                        this.eventHandlers.splice(i, 1);
+                        window._osfHostUnregisterCallback(handler.callbackId);
+                    }
+                }
+            };
+            HostScriptMessaging.prototype.agaveHostCallback = function (callbackId, params) {
+            };
+            HostScriptMessaging.prototype.agaveHostEventCallback = function (callbackId, params) {
+            };
+            HostScriptMessaging.prototype.constructMessagingArgs = function (methodId, params) {
+                var messagingArgs = {
+                    params: params,
+                    methodId: methodId
+                };
+                return messagingArgs;
+            };
+            return HostScriptMessaging;
         }());
         var WebkitScriptMessaging = (function () {
             function WebkitScriptMessaging(methodCallbackName, eventCallbackName) {
@@ -5006,7 +5150,6 @@ var OSFWebkit;
             WebkitScriptMessaging.MESSAGE_TIME_DELTA = 10;
             return WebkitScriptMessaging;
         }());
-        ScriptMessaging.WebkitScriptMessaging = WebkitScriptMessaging;
     })(ScriptMessaging = OSFWebkit.ScriptMessaging || (OSFWebkit.ScriptMessaging = {}));
 })(OSFWebkit || (OSFWebkit = {}));
 OSF.ScriptMessaging = OSFWebkit.ScriptMessaging;
@@ -5049,11 +5192,14 @@ OSF.ScriptMessaging = OSFWebkit.ScriptMessaging;
         MethodId[MethodId["GetContext"] = 5] = "GetContext";
         MethodId[MethodId["SendMessage"] = 6] = "SendMessage";
         MethodId[MethodId["MessageParent"] = 7] = "MessageParent";
+        MethodId[MethodId["SendMessage2"] = 8] = "SendMessage2";
+        MethodId[MethodId["MessageParent2"] = 9] = "MessageParent2";
     })(MethodId = OSFWebkit.MethodId || (OSFWebkit.MethodId = {}));
     var WebkitHostController = (function () {
         function WebkitHostController(hostScriptProxy) {
             this.hostScriptProxy = hostScriptProxy;
             this.useFullDialogAPI = !!window._enableFullDialogAPI;
+            this.osfSupportsDialogOrigin = !!window._osfEnableDialogOrigin;
         }
         WebkitHostController.prototype.execute = function (id, params, callback) {
             var hostParams = {
@@ -5103,13 +5249,34 @@ OSF.ScriptMessaging = OSFWebkit.ScriptMessaging;
             this.hostScriptProxy.unregisterEvent(OSF.Webkit.MessageHandlerName, OSF.Webkit.MethodId.UnregisterEvent, id, targetId, agaveResponseCallback);
         };
         WebkitHostController.prototype.messageParent = function (params) {
-            var message = params[Microsoft.Office.WebExtension.Parameters.MessageToParent];
+            if (this.useFullDialogAPI && params) {
+                var messageToParent = params[Microsoft.Office.WebExtension.Parameters.MessageToParent];
+                if (typeof messageToParent === "boolean") {
+                    if (messageToParent === true) {
+                        params[Microsoft.Office.WebExtension.Parameters.MessageToParent] = "true";
+                    }
+                    else if (messageToParent === false) {
+                        params[Microsoft.Office.WebExtension.Parameters.MessageToParent] = "";
+                    }
+                }
+            }
+            var message;
+            var methodId;
+            if (this.osfSupportsDialogOrigin && params[Microsoft.Office.WebExtension.Parameters.TargetOrigin]) {
+                message = this.useFullDialogAPI ? JSON.stringify(params) : params[Microsoft.Office.WebExtension.Parameters.MessageToParent];
+                methodId = OSF.Webkit.MethodId.MessageParent2;
+            }
+            else {
+                message = params[Microsoft.Office.WebExtension.Parameters.MessageToParent];
+                methodId = OSF.Webkit.MethodId.MessageParent;
+            }
             if (this.useFullDialogAPI) {
-                this.hostScriptProxy.invokeMethod(OSF.Webkit.MessageHandlerName, OSF.Webkit.MethodId.MessageParent, message, null);
+                this.hostScriptProxy.invokeMethod(OSF.Webkit.MessageHandlerName, methodId, message, null);
             }
             else {
                 var messageObj = { dialogMessage: { messageType: OSF.DialogMessageType.DialogMessageReceived, messageContent: message } };
-                window.opener.postMessage(JSON.stringify(messageObj), window.location.origin);
+                var targetOrigin = methodId == OSF.Webkit.MethodId.MessageParent2 ? params[Microsoft.Office.WebExtension.Parameters.TargetOrigin] : window.location.origin;
+                window.opener.postMessage(JSON.stringify(messageObj), targetOrigin);
             }
         };
         WebkitHostController.prototype.openDialog = function (id, targetId, handler, callback) {
@@ -5146,7 +5313,7 @@ OSF.ScriptMessaging = OSFWebkit.ScriptMessaging;
                     try {
                         var messageObj = JSON.parse(event.data);
                         if (messageObj.dialogMessage) {
-                            handler(id, [OSF.DialogMessageType.DialogMessageReceived, messageObj.dialogMessage.messageContent]);
+                            handler(id, [OSF.DialogMessageType.DialogMessageReceived, messageObj.dialogMessage.messageContent, event.origin]);
                         }
                     }
                     catch (e) {
@@ -5202,11 +5369,20 @@ OSF.ScriptMessaging = OSFWebkit.ScriptMessaging;
             }
         };
         WebkitHostController.prototype.sendMessage = function (params) {
-            var message = params[Microsoft.Office.WebExtension.Parameters.MessageContent];
-            if (!isNaN(parseFloat(message)) && isFinite(message)) {
-                message = message.toString();
+            var message;
+            var methodId;
+            if (this.osfSupportsDialogOrigin && params[Microsoft.Office.WebExtension.Parameters.TargetOrigin]) {
+                message = JSON.stringify(params);
+                methodId = OSF.Webkit.MethodId.SendMessage2;
             }
-            this.hostScriptProxy.invokeMethod(OSF.Webkit.MessageHandlerName, OSF.Webkit.MethodId.SendMessage, message, null);
+            else {
+                message = params[Microsoft.Office.WebExtension.Parameters.MessageContent];
+                methodId = OSF.Webkit.MethodId.SendMessage;
+                if (!isNaN(parseFloat(message)) && isFinite(message)) {
+                    message = message.toString();
+                }
+            }
+            this.hostScriptProxy.invokeMethod(OSF.Webkit.MessageHandlerName, methodId, message, null);
         };
         return WebkitHostController;
     }());
@@ -5440,6 +5616,38 @@ OSF.initializeRichCommon = function OSF_initializeRichCommon() {
                 if (onComplete) {
                     onComplete(OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess);
                 }
+            }
+        },
+        refresh: function OSF_DDA_ClientSettingsManager$refresh(onCalling, onComplete) {
+            var keys = [];
+            var values = [];
+            if (onCalling) {
+                onCalling();
+            }
+            var osfSettingsObj;
+            if (typeof OsfOMToken != 'undefined' && OsfOMToken) {
+                osfSettingsObj = OSF.DDA._OsfControlContext.GetSettings(OsfOMToken);
+            }
+            else {
+                osfSettingsObj = OSF.DDA._OsfControlContext.GetSettings();
+            }
+            var readSettingsAndReturn = function () {
+                osfSettingsObj.Read(keys, values);
+                var serializedSettings = {};
+                for (var index = 0; index < keys.length; index++) {
+                    serializedSettings[keys[index]] = values[index];
+                }
+                if (onComplete) {
+                    onComplete(OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess, serializedSettings);
+                }
+            };
+            if (osfSettingsObj.RefreshAsync) {
+                osfSettingsObj.RefreshAsync(function () {
+                    readSettingsAndReturn();
+                });
+            }
+            else {
+                readSettingsAndReturn();
             }
         }
     };
@@ -6031,7 +6239,6 @@ var OSFAriaLogger;
     var TelemetryEventAppActivated = { name: "AppActivated", enabled: true, critical: true, points: [
             { name: "Browser", type: "string" },
             { name: "Message", type: "string" },
-            { name: "AppURL", type: "string" },
             { name: "Host", type: "string" },
             { name: "AppSizeWidth", type: "int64" },
             { name: "AppSizeHeight", type: "int64" },
@@ -6066,7 +6273,6 @@ var OSFAriaLogger;
             { name: "hostType", type: "string" },
             { name: "hostPlatform", type: "string" },
             { name: "correlationId", type: "string" },
-            { name: "wacDomain", type: "string" },
         ] };
     var TelemetryEvents = [
         TelemetryEventAppActivated,
@@ -6296,6 +6502,7 @@ var OSFAppTelemetry;
     var sessionId = OSF.OUtil.Guid.generateNewGuid();
     var osfControlAppCorrelationId = "";
     var omexDomainRegex = new RegExp("^https?://store\\.office(ppe|-int)?\\.com/", "i");
+    var privateAddinId = "PRIVATE";
     OSFAppTelemetry.enableTelemetry = true;
     ;
     var AppInfo = (function () {
@@ -6408,85 +6615,6 @@ var OSFAppTelemetry;
         }
         return (input || "");
     }
-    var UrlFilter = (function () {
-        function UrlFilter() {
-        }
-        UrlFilter.hashString = function (s) {
-            var hash = 0;
-            if (s.length === 0) {
-                return hash;
-            }
-            for (var i = 0; i < s.length; i++) {
-                var c = s.charCodeAt(i);
-                hash = ((hash << 5) - hash) + c;
-                hash |= 0;
-            }
-            return hash;
-        };
-        ;
-        UrlFilter.stringToHash = function (s) {
-            var hash = UrlFilter.hashString(s);
-            var stringHash = hash.toString();
-            if (hash < 0) {
-                stringHash = "1" + stringHash.substring(1);
-            }
-            else {
-                stringHash = "0" + stringHash;
-            }
-            return stringHash;
-        };
-        UrlFilter.startsWith = function (s, prefix) {
-            return s.indexOf(prefix) == -0;
-        };
-        UrlFilter.isFileUrl = function (url) {
-            return UrlFilter.startsWith(url.toLowerCase(), "file:");
-        };
-        UrlFilter.removeHttpPrefix = function (url) {
-            var prefix = "";
-            if (UrlFilter.startsWith(url.toLowerCase(), UrlFilter.httpsPrefix)) {
-                prefix = UrlFilter.httpsPrefix;
-            }
-            else if (UrlFilter.startsWith(url.toLowerCase(), UrlFilter.httpPrefix)) {
-                prefix = UrlFilter.httpPrefix;
-            }
-            var clean = url.slice(prefix.length);
-            return clean;
-        };
-        UrlFilter.getUrlDomain = function (url) {
-            var domain = UrlFilter.removeHttpPrefix(url);
-            domain = domain.split("/")[0];
-            domain = domain.split(":")[0];
-            return domain;
-        };
-        UrlFilter.isIp4Address = function (domain) {
-            var ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-            return ipv4Regex.test(domain);
-        };
-        UrlFilter.filter = function (url) {
-            if (UrlFilter.isFileUrl(url)) {
-                var hash = UrlFilter.stringToHash(url);
-                return "file://" + hash;
-            }
-            var domain = UrlFilter.getUrlDomain(url);
-            if (UrlFilter.isIp4Address(domain)) {
-                var hash = UrlFilter.stringToHash(url);
-                if (UrlFilter.startsWith(domain, "10.")) {
-                    return "IP10Range_" + hash;
-                }
-                else if (UrlFilter.startsWith(domain, "192.")) {
-                    return "IP192Range_" + hash;
-                }
-                else if (UrlFilter.startsWith(domain, "127.")) {
-                    return "IP127Range_" + hash;
-                }
-                return "IPOther_" + hash;
-            }
-            return domain.split(".").slice(-2).join(".");
-        };
-        UrlFilter.httpPrefix = "http://";
-        UrlFilter.httpsPrefix = "https://";
-        return UrlFilter;
-    }());
     function initialize(context) {
         if (!OSFAppTelemetry.enableTelemetry) {
             return;
@@ -6501,17 +6629,19 @@ var OSFAppTelemetry;
         else {
             appInfo.hostVersion = context.get_appVersion();
         }
-        appInfo.appId = context.get_id();
+        appInfo.appId = canSendAddinId() ? context.get_id() : privateAddinId;
+        appInfo.marketplaceType = context._marketplaceType;
         appInfo.browser = window.navigator.userAgent;
         appInfo.correlationId = trimStringToLowerCase(context.get_correlationId());
         appInfo.clientId = (new AppStorage()).getClientId();
         appInfo.appInstanceId = context.get_appInstanceId();
         if (appInfo.appInstanceId) {
-            appInfo.appInstanceId = appInfo.appInstanceId.replace(/[{}]/g, "").toLowerCase();
+            appInfo.appInstanceId = trimStringToLowerCase(appInfo.appInstanceId);
+            appInfo.appInstanceId = getCompliantAppInstanceId(context.get_id(), appInfo.appInstanceId);
         }
         appInfo.message = context.get_hostCustomMessage();
         appInfo.officeJSVersion = OSF.ConstantNames.FileVersion;
-        appInfo.hostJSVersion = "16.0.13927.10000";
+        appInfo.hostJSVersion = "16.0.15407.10000";
         if (context._wacHostEnvironment) {
             appInfo.wacHostEnvironment = context._wacHostEnvironment;
         }
@@ -6524,7 +6654,7 @@ var OSFAppTelemetry;
         if (url) {
             url = url.split("?")[0].split("#")[0];
         }
-        appInfo.appURL = UrlFilter.filter(url);
+        appInfo.appURL = "";
         (function getUserIdAndAssetIdFromToken(token, appInfo) {
             var xmlContent;
             var parser;
@@ -6611,7 +6741,7 @@ var OSFAppTelemetry;
         data.SessionId = sessionId;
         data.AppId = appInfo.appId;
         data.AssetId = appInfo.assetId;
-        data.AppURL = appInfo.appURL;
+        data.AppURL = "";
         data.UserId = "";
         data.ClientId = appInfo.clientId;
         data.Browser = appInfo.browser;
@@ -6698,7 +6828,7 @@ var OSFAppTelemetry;
         data.instanceId = instanceId;
         data.hostType = hostType;
         data.hostPlatform = hostPlatform;
-        data.wacDomain = UrlFilter.filter(wacDomain);
+        data.wacDomain = "";
         (new AppLogger()).LogData(data);
     }
     OSFAppTelemetry.onCheckWACHost = onCheckWACHost;
@@ -6795,6 +6925,13 @@ var OSFAppTelemetry;
         return _isComplianceExceptedHost(hostPlatform, hostVersion);
     }
     OSFAppTelemetry.canSendAddinId = canSendAddinId;
+    function getCompliantAppInstanceId(addinId, appInstanceId) {
+        if (!canSendAddinId() && appInstanceId === addinId) {
+            return privateAddinId;
+        }
+        return appInstanceId;
+    }
+    OSFAppTelemetry.getCompliantAppInstanceId = getCompliantAppInstanceId;
     function _isComplianceExceptedHost(hostPlatform, hostVersion) {
         var excepted = false;
         var versionExtractor = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
@@ -6809,7 +6946,7 @@ var OSFAppTelemetry;
                 }
             }
             else if (hostPlatform == "mac") {
-                if (major < 16 || major == 16 && build < 21062700) {
+                if (major < 16 || (major == 16 && (minor < 52 || minor == 52 && build < 808))) {
                     excepted = true;
                 }
             }
@@ -6825,7 +6962,6 @@ var OSFPerfUtil;
         name = name + "_Resource";
         if (oteljs !== undefined) {
             return [
-                oteljs.makeStringDataField(name + "_name", resource.name),
                 oteljs.makeDoubleDataField(name + "_responseEnd", resource.responseEnd),
                 oteljs.makeDoubleDataField(name + "_responseStart", resource.responseStart),
                 oteljs.makeDoubleDataField(name + "_startTime", resource.startTime),
@@ -6834,16 +6970,17 @@ var OSFPerfUtil;
         }
     }
     function sendPerformanceTelemetry() {
-        if (typeof OTel !== "undefined" && OSF.AppTelemetry.enableTelemetry && typeof OSFPerformance !== "undefined") {
+        if (typeof OTel !== "undefined" && OSF.AppTelemetry.enableTelemetry && typeof OSFPerformance !== "undefined" && typeof (performance) != "undefined" && performance.getEntriesByType) {
             var hostPerfResource_1;
             var officePerfResource_1;
             var resources = performance.getEntriesByType("resource");
             resources.forEach(function (resource) {
-                if (OSF.OUtil.stringEndsWith(resource.name, OSFPerformance.hostSpecificFileName)) {
+                var resourceName = resource.name.toLowerCase();
+                if (OSF.OUtil.stringEndsWith(resourceName, OSFPerformance.hostSpecificFileName)) {
                     hostPerfResource_1 = resource;
                 }
-                else if (OSF.OUtil.stringEndsWith(resource.name, OSF.ConstantNames.OfficeDebugJS) ||
-                    OSF.OUtil.stringEndsWith(resource.name, OSF.ConstantNames.OfficeJS)) {
+                else if (OSF.OUtil.stringEndsWith(resourceName, OSF.ConstantNames.OfficeDebugJS) ||
+                    OSF.OUtil.stringEndsWith(resourceName, OSF.ConstantNames.OfficeJS)) {
                     officePerfResource_1 = resource;
                 }
             });
@@ -6856,10 +6993,14 @@ var OSFPerfUtil;
                     oteljs.makeDoubleDataField("officeExecuteEnd", OSFPerformance.officeExecuteEnd),
                     oteljs.makeDoubleDataField("hostInitializationStart", OSFPerformance.hostInitializationStart),
                     oteljs.makeDoubleDataField("hostInitializationEnd", OSFPerformance.hostInitializationEnd),
+                    oteljs.makeDoubleDataField("totalJSHeapSize", OSFPerformance.totalJSHeapSize),
+                    oteljs.makeDoubleDataField("usedJSHeapSize", OSFPerformance.usedJSHeapSize),
+                    oteljs.makeDoubleDataField("jsHeapSizeLimit", OSFPerformance.jsHeapSizeLimit),
                     oteljs.makeDoubleDataField("getAppContextStart", OSFPerformance.getAppContextStart),
                     oteljs.makeDoubleDataField("getAppContextEnd", OSFPerformance.getAppContextEnd),
                     oteljs.makeDoubleDataField("createOMEnd", OSFPerformance.createOMEnd),
-                    oteljs.makeDoubleDataField("officeOnReady", OSFPerformance.officeOnReady)
+                    oteljs.makeDoubleDataField("officeOnReady", OSFPerformance.officeOnReady),
+                    oteljs.makeBooleanDataField("isSharedRuntime", (OSF._OfficeAppFactory.getHostInfo().flags & OSF.HostInfoFlags.SharedApp) !== 0)
                 ]);
                 Microsoft.Office.WebExtension.sendTelemetryEvent({
                     eventName: "Office.Extensibility.OfficeJs.JSPerformanceTelemetryV06",
@@ -7112,6 +7253,9 @@ OSF.DDA.OMFactory.manufactureEventArgs = function OSF_DDA_OMFactory$manufactureE
             break;
         case Microsoft.Office.WebExtension.EventType.AppCommandInvoked:
             args = OSF.DDA.AppCommand.AppCommandInvokedEventArgs.create(eventProperties);
+            if (OSF._OfficeAppFactory.getHostInfo()["hostType"] == "outlook" && OSF._OfficeAppFactory.getHostInfo()["hostPlatform"] == "mac") {
+                OSF.DDA.convertOlkAppointmentTimeToDateFormat(args);
+            }
             break;
         case Microsoft.Office.WebExtension.EventType.ObjectDeleted:
         case Microsoft.Office.WebExtension.EventType.ObjectSelectionChanged:
@@ -7260,7 +7404,8 @@ OSF.OUtil.augmentList(Microsoft.Office.WebExtension.EventType, {
 });
 OSF.OUtil.augmentList(OSF.DDA.PropertyDescriptors, {
     MessageType: "messageType",
-    MessageContent: "messageContent"
+    MessageContent: "messageContent",
+    MessageOrigin: "messageOrigin"
 });
 OSF.DDA.DialogEventType = {};
 OSF.OUtil.augmentList(OSF.DDA.DialogEventType, {
@@ -7269,6 +7414,7 @@ OSF.OUtil.augmentList(OSF.DDA.DialogEventType, {
 });
 OSF.DDA.AsyncMethodNames.addNames({
     DisplayDialogAsync: "displayDialogAsync",
+    DisplayModalDialogAsync: "displayModalDialogAsync",
     CloseAsync: "close"
 });
 OSF.DDA.SyncMethodNames.addNames({
@@ -7292,15 +7438,34 @@ OSF.DDA.UI.ParentUI = function OSF_DDA_ParentUI() {
             Microsoft.Office.WebExtension.EventType.DialogEventReceived
         ]);
     }
-    var openDialogName = OSF.DDA.AsyncMethodNames.DisplayDialogAsync.displayName;
-    var target = this;
-    if (!target[openDialogName]) {
-        OSF.OUtil.defineEnumerableProperty(target, openDialogName, {
-            value: function () {
-                var openDialog = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.OpenDialog];
-                openDialog(arguments, eventDispatch, target);
+    if (Microsoft.Office.WebExtension.FeatureGates && Microsoft.Office.WebExtension.FeatureGates["OfficeJsDialogRefactor"]) {
+        var target_1 = this;
+        var defineDialogApi = function (apiName, isModalApi) {
+            if (!target_1[apiName]) {
+                OSF.OUtil.defineEnumerableProperty(target_1, apiName, {
+                    value: function () {
+                        var openDialog = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.OpenDialog];
+                        openDialog(arguments, eventDispatch, target_1, isModalApi);
+                    }
+                });
             }
-        });
+        };
+        defineDialogApi(OSF.DDA.AsyncMethodNames.DisplayDialogAsync.displayName, false);
+        if (Microsoft.Office.WebExtension.FeatureGates["ModalWebDialogAPI"]) {
+            defineDialogApi(OSF.DDA.AsyncMethodNames.DisplayModalDialogAsync.displayName, true);
+        }
+    }
+    else {
+        var displayDialogApiName = OSF.DDA.AsyncMethodNames.DisplayDialogAsync.displayName;
+        var target_2 = this;
+        if (!target_2[displayDialogApiName]) {
+            OSF.OUtil.defineEnumerableProperty(target_2, displayDialogApiName, {
+                value: function () {
+                    var openDialog = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.OpenDialog];
+                    openDialog(arguments, eventDispatch, target_2, false);
+                }
+            });
+        }
     }
     OSF.OUtil.finalizeProperties(this);
 };
@@ -7330,6 +7495,9 @@ OSF.DDA.DialogEventArgs = function OSF_DDA_DialogEventArgs(message) {
             },
             "message": {
                 value: message[OSF.DDA.PropertyDescriptors.MessageContent]
+            },
+            "origin": {
+                value: message[OSF.DDA.PropertyDescriptors.MessageOrigin]
             }
         });
     }
@@ -7351,18 +7519,99 @@ OSF.DDA.DialogParentEventArgs = function OSF_DDA_DialogParentEventArgs(message) 
         },
         "message": {
             value: message[OSF.DDA.PropertyDescriptors.MessageContent]
+        },
+        "origin": {
+            value: message[OSF.DDA.PropertyDescriptors.MessageOrigin]
         }
     });
 };
-OSF.DDA.AsyncMethodCalls.define({
-    method: OSF.DDA.AsyncMethodNames.DisplayDialogAsync,
-    requiredArguments: [
-        {
-            "name": Microsoft.Office.WebExtension.Parameters.Url,
-            "types": ["string"]
+var DialogApiManager = (function () {
+    function DialogApiManager() {
+    }
+    DialogApiManager.defineApi = function (apiName, supportedOptions) {
+        var asyncMethodCalls = OSF.DDA.AsyncMethodCalls;
+        asyncMethodCalls.define({
+            method: apiName,
+            requiredArguments: [
+                {
+                    "name": Microsoft.Office.WebExtension.Parameters.Url,
+                    "types": ["string"]
+                }
+            ],
+            supportedOptions: supportedOptions,
+            privateStateCallbacks: [],
+            onSucceeded: function (args, caller, callArgs) {
+                var targetId = args[Microsoft.Office.WebExtension.Parameters.Id];
+                var eventDispatch = args[Microsoft.Office.WebExtension.Parameters.Data];
+                var dialog = new OSF.DialogHandler();
+                var closeDialog = OSF.DDA.AsyncMethodNames.CloseAsync.displayName;
+                OSF.OUtil.defineEnumerableProperty(dialog, closeDialog, {
+                    value: function () {
+                        var closeDialogfunction = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.CloseDialog];
+                        closeDialogfunction(arguments, targetId, eventDispatch, dialog);
+                    }
+                });
+                var addHandler = OSF.DDA.SyncMethodNames.AddMessageHandler.displayName;
+                OSF.OUtil.defineEnumerableProperty(dialog, addHandler, {
+                    value: function () {
+                        var syncMethodCall = OSF.DDA.SyncMethodCalls[OSF.DDA.SyncMethodNames.AddMessageHandler.id];
+                        var callArgs = syncMethodCall.verifyAndExtractCall(arguments, dialog, eventDispatch);
+                        var eventType = callArgs[Microsoft.Office.WebExtension.Parameters.EventType];
+                        var handler = callArgs[Microsoft.Office.WebExtension.Parameters.Handler];
+                        return eventDispatch.addEventHandlerAndFireQueuedEvent(eventType, handler);
+                    }
+                });
+                if (OSF.DDA.UI.EnableSendMessageDialogAPI === true) {
+                    var sendMessage = OSF.DDA.SyncMethodNames.SendMessage.displayName;
+                    OSF.OUtil.defineEnumerableProperty(dialog, sendMessage, {
+                        value: function () {
+                            var execute = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.SendMessage];
+                            return execute(arguments, eventDispatch, dialog);
+                        }
+                    });
+                }
+                if (OSF.DDA.UI.EnableMessageChildDialogAPI === true) {
+                    var messageChild = OSF.DDA.SyncMethodNames.MessageChild.displayName;
+                    OSF.OUtil.defineEnumerableProperty(dialog, messageChild, {
+                        value: function () {
+                            var execute = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.SendMessage];
+                            return execute(arguments, eventDispatch, dialog);
+                        }
+                    });
+                }
+                return dialog;
+            },
+            checkCallArgs: function (callArgs, caller, stateInfo) {
+                if (callArgs[Microsoft.Office.WebExtension.Parameters.Width] <= 0) {
+                    callArgs[Microsoft.Office.WebExtension.Parameters.Width] = 1;
+                }
+                if (!callArgs[Microsoft.Office.WebExtension.Parameters.UseDeviceIndependentPixels] && callArgs[Microsoft.Office.WebExtension.Parameters.Width] > 100) {
+                    callArgs[Microsoft.Office.WebExtension.Parameters.Width] = 99;
+                }
+                if (callArgs[Microsoft.Office.WebExtension.Parameters.Height] <= 0) {
+                    callArgs[Microsoft.Office.WebExtension.Parameters.Height] = 1;
+                }
+                if (!callArgs[Microsoft.Office.WebExtension.Parameters.UseDeviceIndependentPixels] && callArgs[Microsoft.Office.WebExtension.Parameters.Height] > 100) {
+                    callArgs[Microsoft.Office.WebExtension.Parameters.Height] = 99;
+                }
+                if (!callArgs[Microsoft.Office.WebExtension.Parameters.RequireHTTPs]) {
+                    callArgs[Microsoft.Office.WebExtension.Parameters.RequireHTTPs] = true;
+                }
+                return callArgs;
+            }
+        });
+    };
+    DialogApiManager.messageChildRichApiBridge = function () {
+        if (OSF.DDA.UI.EnableMessageChildDialogAPI === true) {
+            var execute = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.SendMessage];
+            return execute(arguments, null, null);
         }
-    ],
-    supportedOptions: [
+    };
+    DialogApiManager.initOnce = function () {
+        DialogApiManager.defineApi(OSF.DDA.AsyncMethodNames.DisplayDialogAsync, DialogApiManager.displayDialogAsyncApiSupportedOptions);
+        DialogApiManager.defineApi(OSF.DDA.AsyncMethodNames.DisplayModalDialogAsync, DialogApiManager.displayModalDialogAsyncApiSupportedOptions);
+    };
+    DialogApiManager.displayDialogAsyncApiSupportedOptions = [
         {
             name: Microsoft.Office.WebExtension.Parameters.Width,
             value: {
@@ -7425,69 +7674,27 @@ OSF.DDA.AsyncMethodCalls.define({
                 "types": ["boolean"],
                 "defaultValue": false
             }
-        }
-    ],
-    privateStateCallbacks: [],
-    onSucceeded: function (args, caller, callArgs) {
-        var targetId = args[Microsoft.Office.WebExtension.Parameters.Id];
-        var eventDispatch = args[Microsoft.Office.WebExtension.Parameters.Data];
-        var dialog = new OSF.DialogHandler();
-        var closeDialog = OSF.DDA.AsyncMethodNames.CloseAsync.displayName;
-        OSF.OUtil.defineEnumerableProperty(dialog, closeDialog, {
-            value: function () {
-                var closeDialogfunction = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.CloseDialog];
-                closeDialogfunction(arguments, targetId, eventDispatch, dialog);
+        },
+    ];
+    DialogApiManager.displayModalDialogAsyncApiSupportedOptions = DialogApiManager.displayDialogAsyncApiSupportedOptions.concat([
+        {
+            name: "abortWhenParentIsMinimized",
+            value: {
+                "types": ["boolean"],
+                "defaultValue": false
             }
-        });
-        var addHandler = OSF.DDA.SyncMethodNames.AddMessageHandler.displayName;
-        OSF.OUtil.defineEnumerableProperty(dialog, addHandler, {
-            value: function () {
-                var syncMethodCall = OSF.DDA.SyncMethodCalls[OSF.DDA.SyncMethodNames.AddMessageHandler.id];
-                var callArgs = syncMethodCall.verifyAndExtractCall(arguments, dialog, eventDispatch);
-                var eventType = callArgs[Microsoft.Office.WebExtension.Parameters.EventType];
-                var handler = callArgs[Microsoft.Office.WebExtension.Parameters.Handler];
-                return eventDispatch.addEventHandlerAndFireQueuedEvent(eventType, handler);
+        },
+        {
+            name: "abortWhenDocIsInactive",
+            value: {
+                "types": ["boolean"],
+                "defaultValue": false
             }
-        });
-        if (OSF.DDA.UI.EnableSendMessageDialogAPI === true) {
-            var sendMessage = OSF.DDA.SyncMethodNames.SendMessage.displayName;
-            OSF.OUtil.defineEnumerableProperty(dialog, sendMessage, {
-                value: function () {
-                    var execute = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.SendMessage];
-                    return execute(arguments, eventDispatch, dialog);
-                }
-            });
-        }
-        if (OSF.DDA.UI.EnableMessageChildDialogAPI === true) {
-            var messageChild = OSF.DDA.SyncMethodNames.MessageChild.displayName;
-            OSF.OUtil.defineEnumerableProperty(dialog, messageChild, {
-                value: function () {
-                    var execute = OSF._OfficeAppFactory.getHostFacade()[OSF.DDA.DispIdHost.Methods.SendMessage];
-                    return execute(arguments, eventDispatch, dialog);
-                }
-            });
-        }
-        return dialog;
-    },
-    checkCallArgs: function (callArgs, caller, stateInfo) {
-        if (callArgs[Microsoft.Office.WebExtension.Parameters.Width] <= 0) {
-            callArgs[Microsoft.Office.WebExtension.Parameters.Width] = 1;
-        }
-        if (!callArgs[Microsoft.Office.WebExtension.Parameters.UseDeviceIndependentPixels] && callArgs[Microsoft.Office.WebExtension.Parameters.Width] > 100) {
-            callArgs[Microsoft.Office.WebExtension.Parameters.Width] = 99;
-        }
-        if (callArgs[Microsoft.Office.WebExtension.Parameters.Height] <= 0) {
-            callArgs[Microsoft.Office.WebExtension.Parameters.Height] = 1;
-        }
-        if (!callArgs[Microsoft.Office.WebExtension.Parameters.UseDeviceIndependentPixels] && callArgs[Microsoft.Office.WebExtension.Parameters.Height] > 100) {
-            callArgs[Microsoft.Office.WebExtension.Parameters.Height] = 99;
-        }
-        if (!callArgs[Microsoft.Office.WebExtension.Parameters.RequireHTTPs]) {
-            callArgs[Microsoft.Office.WebExtension.Parameters.RequireHTTPs] = true;
-        }
-        return callArgs;
-    }
-});
+        },
+    ]);
+    return DialogApiManager;
+}());
+DialogApiManager.initOnce();
 OSF.DDA.AsyncMethodCalls.define({
     method: OSF.DDA.AsyncMethodNames.CloseAsync,
     requiredArguments: [],
@@ -7502,7 +7709,15 @@ OSF.DDA.SyncMethodCalls.define({
             "types": ["string", "number", "boolean"]
         }
     ],
-    supportedOptions: []
+    supportedOptions: [
+        {
+            name: Microsoft.Office.WebExtension.Parameters.TargetOrigin,
+            value: {
+                "types": ["string"],
+                "defaultValue": ""
+            }
+        }
+    ]
 });
 OSF.DDA.SyncMethodCalls.define({
     method: OSF.DDA.SyncMethodNames.AddMessageHandler,
@@ -7527,7 +7742,15 @@ OSF.DDA.SyncMethodCalls.define({
             "types": ["string"]
         }
     ],
-    supportedOptions: [],
+    supportedOptions: [
+        {
+            name: Microsoft.Office.WebExtension.Parameters.TargetOrigin,
+            value: {
+                "types": ["string"],
+                "defaultValue": ""
+            }
+        }
+    ],
     privateStateCallbacks: []
 });
 OSF.DDA.SafeArray.Delegate.openDialog = function OSF_DDA_SafeArray_Delegate$OpenDialog(args) {
@@ -7591,7 +7814,8 @@ OSF.DDA.SafeArray.Delegate.ParameterMap.define({
     type: OSF.DDA.EventDescriptors.DialogMessageReceivedEvent,
     fromHost: [
         { name: OSF.DDA.PropertyDescriptors.MessageType, value: 0 },
-        { name: OSF.DDA.PropertyDescriptors.MessageContent, value: 1 }
+        { name: OSF.DDA.PropertyDescriptors.MessageContent, value: 1 },
+        { name: OSF.DDA.PropertyDescriptors.MessageOrigin, value: 2 }
     ],
     isComplexType: true
 });
@@ -7633,7 +7857,8 @@ OSF.DDA.SafeArray.Delegate.ParameterMap.define({
     type: OSF.DDA.EventDescriptors.DialogParentMessageReceivedEvent,
     fromHost: [
         { name: OSF.DDA.PropertyDescriptors.MessageType, value: 0 },
-        { name: OSF.DDA.PropertyDescriptors.MessageContent, value: 1 }
+        { name: OSF.DDA.PropertyDescriptors.MessageContent, value: 1 },
+        { name: OSF.DDA.PropertyDescriptors.MessageOrigin, value: 2 }
     ],
     isComplexType: true
 });
@@ -9845,6 +10070,7 @@ OSF.DDA.SafeArray.Delegate.ParameterMap.define({
                 var _this = this;
                 this._pseudoDocument = null;
                 this._eventDispatch = null;
+                this._useAssociatedActionsOnly = null;
                 this._processAppCommandInvocation = function (args) {
                     var verifyResult = _this._verifyManifestCallback(args.callbackName);
                     if (verifyResult.errorCode != OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess) {
@@ -9925,6 +10151,37 @@ OSF.DDA.SafeArray.Delegate.ParameterMap.define({
                 }
                 return { callback: callbackFunc, errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess };
             };
+            AppCommandManager.prototype._getUseAssociatedActionsOnly = function () {
+                var _this = this;
+                if (this._useAssociatedActionsOnly == null) {
+                    this._useAssociatedActionsOnly = false;
+                    try {
+                        if (window["useAssociatedActionsOnly"] === true) {
+                            this._useAssociatedActionsOnly = true;
+                        }
+                        else {
+                            this._useAssociatedActionsOnly = OSF._OfficeAppFactory.getLoadScriptHelper().getUseAssociatedActionsOnlyDefined();
+                        }
+                        if (OTel && oteljs && Microsoft.Office.WebExtension.sendTelemetryEvent) {
+                            OTel.OTelLogger.onTelemetryLoaded(function () {
+                                var dataFields = [
+                                    oteljs.makeBooleanDataField("UseAction", _this._useAssociatedActionsOnly === true)
+                                ];
+                                Microsoft.Office.WebExtension.sendTelemetryEvent({
+                                    eventName: "Office.Extensibility.OfficeJs.AppCommandDefinition",
+                                    dataFields: dataFields,
+                                    eventFlags: {
+                                        dataCategories: oteljs.DataCategories.ProductServiceUsage,
+                                        diagnosticLevel: oteljs.DiagnosticLevel.NecessaryServiceDataEvent
+                                    }
+                                });
+                            });
+                        }
+                    }
+                    catch (e) { }
+                }
+                return this._useAssociatedActionsOnly;
+            };
             AppCommandManager.prototype._getCallbackFuncFromWindow = function (callbackName) {
                 var callList = callbackName.split(".");
                 var parentObject = window;
@@ -9944,7 +10201,10 @@ OSF.DDA.SafeArray.Delegate.ParameterMap.define({
                 return Office.actions._association.mappings[nameUpperCase];
             };
             AppCommandManager.prototype._getCallbackFunc = function (callbackName) {
-                var callbackFunc = this._getCallbackFuncFromWindow(callbackName);
+                var callbackFunc = null;
+                if (!this._getUseAssociatedActionsOnly()) {
+                    callbackFunc = this._getCallbackFuncFromWindow(callbackName);
+                }
                 if (!callbackFunc) {
                     callbackFunc = this._getCallbackFuncFromActionAssociateTable(callbackName);
                 }
@@ -10304,15 +10564,19 @@ OSF.DDA.ExcelDocument = function OSF_DDA_ExcelDocument(officeAppContext, setting
     OSF.OUtil.finalizeProperties(this);
 };
 OSF.OUtil.extend(OSF.DDA.ExcelDocument, OSF.DDA.JsomDocument);
-OSF.InitializationHelper.prototype.prepareRightAfterWebExtensionInitialize = function OSF_InitializationHelper$prepareRightAfterWebExtensionInitialize() {
-    var appCommandHandler = OfficeExt.AppCommand.AppCommandManager.instance();
-    appCommandHandler.initializeAndChangeOnce();
+OSF.InitializationHelper.prototype.prepareRightAfterWebExtensionInitialize = function OSF_InitializationHelper$prepareRightAfterWebExtensionInitialize(appContext) {
+    if (!(appContext && appContext.get_isDialog())) {
+        var appCommandHandler = OfficeExt.AppCommand.AppCommandManager.instance();
+        appCommandHandler.initializeAndChangeOnce();
+    }
 };
 OSF.InitializationHelper.prototype.loadAppSpecificScriptAndCreateOM = function OSF_InitializationHelper$loadAppSpecificScriptAndCreateOM(appContext, appReady, basePath) {
     OSF.DDA.ErrorCodeManager.initializeErrorMessages(Strings.OfficeOM);
     appContext.doc = new OSF.DDA.ExcelDocument(appContext, this.initializeMacSettings(appContext, true));
     OSF.DDA.DispIdHost.addAsyncMethods(OSF.DDA.RichApi, [OSF.DDA.AsyncMethodNames.ExecuteRichApiRequestAsync]);
-    OSF.DDA.RichApi.richApiMessageManager = new OfficeExt.RichApiMessageManager();
+    if (!appContext.get_isDialog()) {
+        OSF.DDA.RichApi.richApiMessageManager = new OfficeExt.RichApiMessageManager();
+    }
     appReady();
 };
 (function () {
@@ -10369,9 +10633,7 @@ var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b)
-                if (b.hasOwnProperty(p))
-                    d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
         return extendStatics(d, b);
     };
     return function (d, b) {
@@ -10947,13 +11209,9 @@ var OfficeExtension;
         SessionBase.prototype._createRequestExecutorOrNull = function () {
             return null;
         };
-        Object.defineProperty(SessionBase.prototype, "eventRegistration", {
-            get: function () {
-                return null;
-            },
-            enumerable: true,
-            configurable: true
-        });
+        SessionBase.prototype.getEventRegistration = function (controlId) {
+            return null;
+        };
         return SessionBase;
     }());
     OfficeExtension_1.SessionBase = SessionBase;
@@ -11067,6 +11325,19 @@ var OfficeExtension;
                 request.method = 'GET';
             }
             request.method = request.method.toUpperCase();
+            var alreadyHasTestName = false;
+            if (typeof (request.headers) === 'object' && request.headers[CoreConstants.testRequestNameHeader]) {
+                alreadyHasTestName = true;
+            }
+            if (!alreadyHasTestName) {
+                var currentTestName = TestUtility._getCurrentTestNameWithSequenceId();
+                if (currentTestName) {
+                    if (!request.headers) {
+                        request.headers = {};
+                    }
+                    request.headers[CoreConstants.testRequestNameHeader] = currentTestName;
+                }
+            }
         };
         HttpUtility.logRequest = function (request) {
             if (CoreUtility._logEnabled) {
@@ -11148,6 +11419,9 @@ var OfficeExtension;
                     if (flagsAndCustomData.flags >= 0) {
                         requestFlags = flagsAndCustomData.flags;
                     }
+                }
+                if (typeof (request.body) === "string") {
+                    request.body = JSON.parse(request.body);
                 }
                 var bridgeMessage = {
                     id: HostBridge.nextId(),
@@ -11314,6 +11588,7 @@ var OfficeExtension;
         CoreErrorCodes.invalidRequestContext = 'InvalidRequestContext';
         CoreErrorCodes.valueNotLoaded = 'ValueNotLoaded';
         CoreErrorCodes.requestPayloadSizeLimitExceeded = 'RequestPayloadSizeLimitExceeded';
+        CoreErrorCodes.responsePayloadSizeLimitExceeded = 'ResponsePayloadSizeLimitExceeded';
         CoreErrorCodes.writeNotSupportedWhenModalDialogOpen = 'WriteNotSupportedWhenModalDialogOpen';
         return CoreErrorCodes;
     }());
@@ -11344,6 +11619,7 @@ var OfficeExtension;
         CoreConstants.localDocument = 'http://document.localhost/';
         CoreConstants.localDocumentApiPrefix = 'http://document.localhost/_api/';
         CoreConstants.customData = 'customdata';
+        CoreConstants.testRequestNameHeader = 'x-test-request-name';
         return CoreConstants;
     }());
     OfficeExtension_1.CoreConstants = CoreConstants;
@@ -11387,6 +11663,10 @@ var OfficeExtension;
                 response.ErrorCode = CoreErrorCodes.requestPayloadSizeLimitExceeded;
                 response.HttpStatusCode = 400;
             }
+            else if (errorCode == RichApiMessageUtility.OfficeJsErrorCode_ooeResponsePayloadSizeLimitExceeded) {
+                response.ErrorCode = CoreErrorCodes.responsePayloadSizeLimitExceeded;
+                response.HttpStatusCode = 400;
+            }
             else if (errorCode == RichApiMessageUtility.OfficeJsErrorCode_ooeWriteNotSupportedWhenModalDialogOpen) {
                 response.ErrorCode = CoreErrorCodes.writeNotSupportedWhenModalDialogOpen;
                 response.HttpStatusCode = 400;
@@ -11426,6 +11706,9 @@ var OfficeExtension;
             var solutionId = '';
             var instanceId = '';
             var marketplaceType = '';
+            var solutionVersion = '';
+            var storeLocation = '';
+            var compliantSolutionId = '';
             return [
                 customData,
                 method,
@@ -11436,7 +11719,10 @@ var OfficeExtension;
                 requestFlags,
                 solutionId,
                 instanceId,
-                marketplaceType
+                marketplaceType,
+                solutionVersion,
+                storeLocation,
+                compliantSolutionId
             ];
         };
         RichApiMessageUtility.getResponseBody = function (result) {
@@ -11474,6 +11760,7 @@ var OfficeExtension;
         RichApiMessageUtility.OfficeJsErrorCode_ooeActivityLimitReached = 5102;
         RichApiMessageUtility.OfficeJsErrorCode_ooeNoCapability = 7000;
         RichApiMessageUtility.OfficeJsErrorCode_ooeRequestPayloadSizeLimitExceeded = 5103;
+        RichApiMessageUtility.OfficeJsErrorCode_ooeResponsePayloadSizeLimitExceeded = 5104;
         RichApiMessageUtility.OfficeJsErrorCode_ooeWriteNotSupportedWhenModalDialogOpen = 5016;
         RichApiMessageUtility.OfficeJsErrorCode_ooeInvalidSheetName = 1014;
         return RichApiMessageUtility;
@@ -11696,7 +11983,7 @@ var OfficeExtension;
                 var keyvalue = parts[i].split('=');
                 if (keyvalue[0].toLowerCase() === CoreConstants.flags) {
                     var flags = parseInt(keyvalue[1]);
-                    flags = flags & 4095;
+                    flags = flags & 8191;
                     ret.flags = flags;
                 }
                 else if (keyvalue[0].toLowerCase() === CoreConstants.customData) {
@@ -11766,19 +12053,7 @@ var OfficeExtension;
             return responseHeaders;
         };
         CoreUtility._parseErrorResponse = function (responseInfo) {
-            var errorObj = null;
-            if (CoreUtility.isPlainJsonObject(responseInfo.body)) {
-                errorObj = responseInfo.body;
-            }
-            else if (!CoreUtility.isNullOrEmptyString(responseInfo.body)) {
-                var errorResponseBody = CoreUtility.trim(responseInfo.body);
-                try {
-                    errorObj = JSON.parse(errorResponseBody);
-                }
-                catch (e) {
-                    CoreUtility.log('Error when parse ' + errorResponseBody);
-                }
-            }
+            var errorObj = CoreUtility._parseErrorResponseBody(responseInfo);
             var statusCode = responseInfo.statusCode.toString();
             if (CoreUtility.isNullOrUndefined(errorObj) || typeof errorObj !== 'object' || !errorObj.error) {
                 return CoreUtility._createDefaultErrorResponse(statusCode);
@@ -11792,6 +12067,20 @@ var OfficeExtension;
                 return CoreUtility._createErrorResponse(error.code, statusCode, error.message);
             }
             return CoreUtility._createDefaultErrorResponse(statusCode);
+        };
+        CoreUtility._parseErrorResponseBody = function (responseInfo) {
+            if (CoreUtility.isPlainJsonObject(responseInfo.body)) {
+                return responseInfo.body;
+            }
+            else if (!CoreUtility.isNullOrEmptyString(responseInfo.body)) {
+                var errorResponseBody = CoreUtility.trim(responseInfo.body);
+                try {
+                    return JSON.parse(errorResponseBody);
+                }
+                catch (e) {
+                    CoreUtility.log('Error when parse ' + errorResponseBody);
+                }
+            }
         };
         CoreUtility._createDefaultErrorResponse = function (statusCode) {
             return {
@@ -11844,6 +12133,17 @@ var OfficeExtension;
         TestUtility.isMock = function () {
             return TestUtility.s_isMock;
         };
+        TestUtility._setCurrentTestName = function (value) {
+            TestUtility.s_currentTestName = value;
+            TestUtility.s_currentTestSequenceId = 0;
+        };
+        TestUtility._getCurrentTestNameWithSequenceId = function () {
+            if (TestUtility.s_currentTestName) {
+                TestUtility.s_currentTestSequenceId++;
+                return TestUtility.s_currentTestName + "." + TestUtility.s_currentTestSequenceId;
+            }
+            return null;
+        };
         return TestUtility;
     }());
     OfficeExtension_1.TestUtility = TestUtility;
@@ -11855,7 +12155,8 @@ var OfficeExtension;
         alwaysPolyfillClientObjectRetrieveMethod: false,
         enableConcurrentFlag: true,
         enableUndoableFlag: true,
-        appendTypeNameToObjectPathInfo: false
+        appendTypeNameToObjectPathInfo: false,
+        enablePreviewExecution: false,
     };
     OfficeExtension_1.config = {
         extendedErrorLogging: false
@@ -11878,6 +12179,17 @@ var OfficeExtension;
             var action = new Action(actionInfo, 0, flags);
             action.referencedObjectPath = parent._objectPath;
             action.referencedArgumentObjectPaths = referencedArgumentObjectPaths;
+            if (OfficeExtension_1._internalConfig.enablePreviewExecution && (flags & 16) !== 0) {
+                var previewExecutionAction = {
+                    Id: context._nextId(),
+                    ActionType: 4,
+                    Name: propertyName,
+                    ObjectId: '',
+                    ObjectType: '',
+                    Arguments: [value]
+                };
+                parent._addPreviewExecutionAction(previewExecutionAction);
+            }
             return parent._addAction(action);
         };
         CommonActionFactory.createQueryAction = function (context, parent, queryOption, resultHandler) {
@@ -11943,12 +12255,12 @@ var OfficeExtension;
         });
         ClientObjectBase.prototype._addAction = function (action, resultHandler) {
             var _this = this;
-            if (resultHandler === void 0) {
-                resultHandler = null;
-            }
+            if (resultHandler === void 0) { resultHandler = null; }
             return CoreUtility.createPromise(function (resolve, reject) {
                 _this._context._addServiceApiAction(action, resultHandler, resolve, reject);
             });
+        };
+        ClientObjectBase.prototype._addPreviewExecutionAction = function (action) {
         };
         ClientObjectBase.prototype._retrieve = function (option, resultHandler) {
             var shouldPolyfill = OfficeExtension_1._internalConfig.alwaysPolyfillClientObjectRetrieveMethod;
@@ -12474,12 +12786,16 @@ var OfficeExtension;
             this.m_referencedObjectPaths = {};
             this.m_instantiatedObjectPaths = {};
             this.m_preSyncPromises = [];
+            this.m_previewExecutionActions = [];
         }
         ClientRequestBase.prototype.addAction = function (action) {
             this.m_actions.push(action);
             if (action.actionInfo.ActionType == 1) {
                 this.m_instantiatedObjectPaths[action.actionInfo.ObjectPathId] = action;
             }
+        };
+        ClientRequestBase.prototype.addPreviewExecutionAction = function (action) {
+            this.m_previewExecutionActions.push(action);
         };
         Object.defineProperty(ClientRequestBase.prototype, "hasActions", {
             get: function () {
@@ -12624,6 +12940,10 @@ var OfficeExtension;
                 Actions: actions,
                 ObjectPaths: objectPaths
             };
+            if (this.m_previewExecutionActions.length > 0) {
+                body.PreviewExecutionActions = this.m_previewExecutionActions;
+                requestFlags = requestFlags | 4096;
+            }
             return {
                 body: body,
                 flags: requestFlags
@@ -12816,7 +13136,8 @@ var OfficeExtension;
                 .executeAsync(this.m_context._customData, flags, requestMessage)
                 .then(function (response) {
                 _this.processResponse(request, actions, response);
-            })["catch"](function (ex) {
+            })
+                .catch(function (ex) {
                 for (var i = 0; i < actions.length; i++) {
                     var action = actions[i];
                     action.reject(ex);
@@ -12934,7 +13255,8 @@ var OfficeExtension;
                         ErrorCode: error.errorCode,
                         ErrorMessage: error.errorMessage,
                         Headers: responseInfo.headers,
-                        Body: null
+                        Body: null,
+                        RawErrorResponseBody: CoreUtility._parseErrorResponseBody(responseInfo)
                     };
                 }
                 return response;
@@ -12962,6 +13284,7 @@ var OfficeExtension;
         CommonConstants.scalarPropertyOriginalNames = '_scalarPropertyOriginalNames';
         CommonConstants.navigationPropertyNames = '_navigationPropertyNames';
         CommonConstants.scalarPropertyUpdateable = '_scalarPropertyUpdateable';
+        CommonConstants.previewExecutionObjectId = '_previewExecutionObjectId';
         return CommonConstants;
     }(CoreConstants));
     OfficeExtension_1.CommonConstants = CommonConstants;
@@ -13336,18 +13659,10 @@ var OfficeExtension;
         function OperationalApiHelper() {
         }
         OperationalApiHelper.invokeMethod = function (obj, methodName, operationType, args, flags, resultProcessType) {
-            if (operationType === void 0) {
-                operationType = 0;
-            }
-            if (args === void 0) {
-                args = [];
-            }
-            if (flags === void 0) {
-                flags = 0;
-            }
-            if (resultProcessType === void 0) {
-                resultProcessType = 0;
-            }
+            if (operationType === void 0) { operationType = 0; }
+            if (args === void 0) { args = []; }
+            if (flags === void 0) { flags = 0; }
+            if (resultProcessType === void 0) { resultProcessType = 0; }
             return CoreUtility.createPromise(function (resolve, reject) {
                 var result = new ClientResult();
                 var actionInfo = {
@@ -13544,7 +13859,7 @@ var OfficeExtension;
         }
         GenericEventRegistryOperational.prototype.add = function (callback) {
             if (this.hasZero()) {
-                GenericEventRegistration.getGenericEventRegistration().register(this.eventId, this.targetId, this.registerCallback);
+                GenericEventRegistration.getGenericEventRegistration('').register(this.eventId, this.targetId, this.registerCallback);
             }
             this.registeredCallbacks.push(callback);
         };
@@ -13556,7 +13871,7 @@ var OfficeExtension;
         };
         GenericEventRegistryOperational.prototype.removeAll = function () {
             this.registeredCallbacks = [];
-            GenericEventRegistration.getGenericEventRegistration().unregister(this.eventId, this.targetId, this.registerCallback);
+            GenericEventRegistration.getGenericEventRegistration('').unregister(this.eventId, this.targetId, this.registerCallback);
         };
         GenericEventRegistryOperational.prototype.hasZero = function () {
             return this.registeredCallbacks.length === 0;
@@ -13583,7 +13898,8 @@ var OfficeExtension;
         };
         GenericEventRegistryOperational.callCallback = function (callback, eventArguments) {
             return CoreUtility._createPromiseFromResult(null)
-                .then(GenericEventRegistryOperational.wrapCallbackInFunction(callback, eventArguments))["catch"](function (e) {
+                .then(GenericEventRegistryOperational.wrapCallbackInFunction(callback, eventArguments))
+                .catch(function (e) {
                 CoreUtility.log('Error when invoke handler: ' + JSON.stringify(e));
             });
         };
@@ -13675,8 +13991,8 @@ var OfficeExtension;
             var args = [];
             var flags = 0;
             OperationalApiHelper.invokeMethod(this.genericEventInfo.object, this.genericEventInfo.register, operationType, args, flags);
-            if (!GenericEventRegistration.getGenericEventRegistration().isReady) {
-                GenericEventRegistration.getGenericEventRegistration().ready();
+            if (!GenericEventRegistration.getGenericEventRegistration('').isReady) {
+                GenericEventRegistration.getGenericEventRegistration('').ready();
             }
         };
         GenericEventHandlerOperational.prototype.unregister = function () {
@@ -13763,10 +14079,22 @@ var OfficeExtension;
             };
             var referencedArgumentObjectPaths = Utility.setMethodArguments(context, actionInfo.ArgumentInfo, args);
             Utility.validateReferencedObjectPaths(referencedArgumentObjectPaths);
-            var action = new Action(actionInfo, operationType, Utility._fixupApiFlags(flags));
+            var fixedFlags = Utility._fixupApiFlags(flags);
+            var action = new Action(actionInfo, operationType, fixedFlags);
             action.referencedObjectPath = parent._objectPath;
             action.referencedArgumentObjectPaths = referencedArgumentObjectPaths;
             parent._addAction(action);
+            if (OfficeExtension_1._internalConfig.enablePreviewExecution && (fixedFlags & 16) !== 0) {
+                var previewExecutionAction = {
+                    Id: context._nextId(),
+                    ActionType: 3,
+                    Name: methodName,
+                    Arguments: args,
+                    ObjectId: '',
+                    ObjectType: ''
+                };
+                parent._addPreviewExecutionAction(previewExecutionAction);
+            }
             return action;
         };
         ActionFactory.createRecursiveQueryAction = function (context, parent, query) {
@@ -13895,9 +14223,7 @@ var OfficeExtension;
             configurable: true
         });
         ClientObject.prototype._addAction = function (action, resultHandler, isInstantiationEnsured) {
-            if (resultHandler === void 0) {
-                resultHandler = null;
-            }
+            if (resultHandler === void 0) { resultHandler = null; }
             if (!isInstantiationEnsured) {
                 this.context._pendingRequest.ensureInstantiateObjectPath(this._objectPath);
                 this.context._pendingRequest.ensureInstantiateObjectPaths(action.referencedArgumentObjectPaths);
@@ -13907,6 +14233,20 @@ var OfficeExtension;
             this.context._pendingRequest.addReferencedObjectPaths(action.referencedArgumentObjectPaths);
             this.context._pendingRequest.addActionResultHandler(action, resultHandler);
             return CoreUtility._createPromiseFromResult(null);
+        };
+        ClientObject.prototype._addPreviewExecutionAction = function (action) {
+            if (!Utility.isUndefined(this._className)) {
+                action.ObjectType = this._className;
+                var objectId = Utility._getPropertyValueWithoutCheckLoaded(this, Constants.idLowerCase);
+                if (Utility.isUndefined(objectId)) {
+                    objectId = Utility._getPropertyValueWithoutCheckLoaded(this, Constants.idPrivate);
+                }
+                if (Utility.isUndefined(objectId)) {
+                    objectId = Utility._getPropertyValueWithoutCheckLoaded(this, Constants.previewExecutionObjectId);
+                }
+                action.ObjectId = objectId;
+                this.context._pendingRequest.addPreviewExecutionAction(action);
+            }
         };
         ClientObject.prototype._handleResult = function (value) {
             this._isNull = Utility.isNullOrUndefined(value);
@@ -14024,10 +14364,15 @@ var OfficeExtension;
                 headers: requestMessage.Headers,
                 body: requestMessage.Body
             };
+            var controlId = '';
+            if (requestMessage.Headers) {
+                controlId = requestMessage.Headers[Constants.officeControlId];
+            }
             var message = {
                 id: HostBridge.nextId(),
                 type: 1,
                 flags: requestFlags,
+                controlId: controlId,
                 message: httpRequestInfo
             };
             CoreUtility.log(JSON.stringify(message));
@@ -14067,7 +14412,20 @@ var OfficeExtension;
             _this.m_bridge = m_bridge;
             _this.m_bridge.addHostMessageHandler(function (message) {
                 if (message.type === 3) {
-                    GenericEventRegistration.getGenericEventRegistration()._handleRichApiMessage(message.message);
+                    var controlId = message.controlId;
+                    if (CoreUtility.isNullOrEmptyString(controlId)) {
+                        GenericEventRegistration.getGenericEventRegistration(controlId)._handleRichApiMessage(message.message);
+                    }
+                    else {
+                        var eventRegistration = GenericEventRegistration.peekGenericEventRegistrationOrNull(controlId);
+                        if (eventRegistration) {
+                            eventRegistration._handleRichApiMessage(message.message);
+                        }
+                        eventRegistration = GenericEventRegistration.peekGenericEventRegistrationOrNull('');
+                        if (eventRegistration) {
+                            eventRegistration._handleRichApiMessage(message.message);
+                        }
+                    }
                 }
             });
             return _this;
@@ -14089,13 +14447,9 @@ var OfficeExtension;
             CoreUtility.log('NativeBridgeSession::CreateRequestExecutor');
             return new HostBridgeRequestExecutor(this);
         };
-        Object.defineProperty(HostBridgeSession.prototype, "eventRegistration", {
-            get: function () {
-                return GenericEventRegistration.getGenericEventRegistration();
-            },
-            enumerable: true,
-            configurable: true
-        });
+        HostBridgeSession.prototype.getEventRegistration = function (controlId) {
+            return GenericEventRegistration.getGenericEventRegistration(controlId);
+        };
         HostBridgeSession.prototype.sendMessageToHost = function (message) {
             return this.m_bridge.sendMessageToHostAndExpectResponse(message);
         };
@@ -14159,7 +14513,7 @@ var OfficeExtension;
         Object.defineProperty(ClientRequestContext.prototype, "eventRegistration", {
             get: function () {
                 if (this.m_session) {
-                    return this.m_session.eventRegistration;
+                    return this.m_session.getEventRegistration(this._controlId);
                 }
                 return _Internal.officeJsEventRegistration;
             },
@@ -14182,6 +14536,17 @@ var OfficeExtension;
                     this.m_pendingRequest = new ClientRequest(this);
                 }
                 return this.m_pendingRequest;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ClientRequestContext.prototype, "_controlId", {
+            get: function () {
+                var ret = this.m_customRequestHeaders[Constants.officeControlId];
+                if (CoreUtility.isNullOrUndefined(ret)) {
+                    ret = '';
+                }
+                return ret;
             },
             enumerable: true,
             configurable: true
@@ -14302,6 +14667,10 @@ var OfficeExtension;
             CoreUtility._copyHeaders(this.m_requestUrlAndHeaderInfo.headers, headers);
             CoreUtility._copyHeaders(this.m_customRequestHeaders, headers);
             delete this.m_customRequestHeaders[Constants.officeScriptEventId];
+            var testNameWithSequenceId = TestUtility._getCurrentTestNameWithSequenceId();
+            if (testNameWithSequenceId) {
+                headers[CoreConstants.testRequestNameHeader] = testNameWithSequenceId;
+            }
             var requestExecutorRequestMessage = {
                 Url: this.m_requestUrlAndHeaderInfo.url,
                 Headers: headers,
@@ -14310,14 +14679,19 @@ var OfficeExtension;
             req.invalidatePendingInvalidObjectPaths();
             var errorFromResponse = null;
             var errorFromProcessEventHandlers = null;
-            this._lastSyncStart = typeof performance === 'undefined' ? 0 : performance.now();
+            this._lastSyncStart = typeof performance === 'undefined' ? Date.now() : performance.now();
             this._lastRequestFlags = requestFlags;
             return requestExecutor
                 .executeAsync(this._customData, requestFlags, requestExecutorRequestMessage)
                 .then(function (response) {
-                _this._lastSyncEnd = typeof performance === 'undefined' ? 0 : performance.now();
+                _this._lastSyncEnd = typeof performance === 'undefined' ? Date.now() : performance.now();
+                if (OfficeExtension_1.config.executePerfLogFunc) {
+                    OfficeExtension_1.config.executePerfLogFunc({ syncStart: _this._lastSyncStart,
+                        syncEnd: _this._lastSyncEnd
+                    });
+                }
                 errorFromResponse = _this.processRequestExecutorResponseMessage(req, response);
-                return _this.processPendingEventHandlers(req)["catch"](function (ex) {
+                return _this.processPendingEventHandlers(req).catch(function (ex) {
                     CoreUtility.log('Error in processPendingEventHandlers');
                     CoreUtility.log(JSON.stringify(ex));
                     errorFromProcessEventHandlers = ex;
@@ -14399,7 +14773,8 @@ var OfficeExtension;
                     code: response.ErrorCode,
                     httpStatusCode: response.HttpStatusCode,
                     message: response.ErrorMessage,
-                    traceMessages: traceMessages
+                    traceMessages: traceMessages,
+                    data: { responseBody: response.RawErrorResponseBody }
                 });
             }
             else if (response.Body && response.Body.Error) {
@@ -14484,7 +14859,8 @@ var OfficeExtension;
                     request = _this.m_pendingRequest;
                     _this.m_pendingRequest = previousRequest;
                     return result;
-                })["catch"](function (ex) {
+                })
+                    .catch(function (ex) {
                     _this.m_explicitBatchInProgress = false;
                     request = _this.m_pendingRequest;
                     _this.m_pendingRequest = previousRequest;
@@ -14508,12 +14884,8 @@ var OfficeExtension;
             });
         };
         ClientRequestContext._run = function (ctxInitializer, runBody, numCleanupAttempts, retryDelay, onCleanupSuccess, onCleanupFailure) {
-            if (numCleanupAttempts === void 0) {
-                numCleanupAttempts = 3;
-            }
-            if (retryDelay === void 0) {
-                retryDelay = 5000;
-            }
+            if (numCleanupAttempts === void 0) { numCleanupAttempts = 3; }
+            if (retryDelay === void 0) { retryDelay = 5000; }
             return ClientRequestContext._runCommon('run', null, ctxInitializer, 0, runBody, numCleanupAttempts, retryDelay, null, onCleanupSuccess, onCleanupFailure);
         };
         ClientRequestContext.isValidRequestInfo = function (value) {
@@ -14531,30 +14903,18 @@ var OfficeExtension;
             return typeof value === 'object' && value !== null && typeof value._resolveRequestUrlAndHeaderInfo === 'function';
         };
         ClientRequestContext._runBatch = function (functionName, receivedRunArgs, ctxInitializer, onBeforeRun, numCleanupAttempts, retryDelay, onCleanupSuccess, onCleanupFailure) {
-            if (numCleanupAttempts === void 0) {
-                numCleanupAttempts = 3;
-            }
-            if (retryDelay === void 0) {
-                retryDelay = 5000;
-            }
+            if (numCleanupAttempts === void 0) { numCleanupAttempts = 3; }
+            if (retryDelay === void 0) { retryDelay = 5000; }
             return ClientRequestContext._runBatchCommon(0, functionName, receivedRunArgs, ctxInitializer, numCleanupAttempts, retryDelay, onBeforeRun, onCleanupSuccess, onCleanupFailure);
         };
         ClientRequestContext._runExplicitBatch = function (functionName, receivedRunArgs, ctxInitializer, onBeforeRun, numCleanupAttempts, retryDelay, onCleanupSuccess, onCleanupFailure) {
-            if (numCleanupAttempts === void 0) {
-                numCleanupAttempts = 3;
-            }
-            if (retryDelay === void 0) {
-                retryDelay = 5000;
-            }
+            if (numCleanupAttempts === void 0) { numCleanupAttempts = 3; }
+            if (retryDelay === void 0) { retryDelay = 5000; }
             return ClientRequestContext._runBatchCommon(1, functionName, receivedRunArgs, ctxInitializer, numCleanupAttempts, retryDelay, onBeforeRun, onCleanupSuccess, onCleanupFailure);
         };
         ClientRequestContext._runBatchCommon = function (batchMode, functionName, receivedRunArgs, ctxInitializer, numCleanupAttempts, retryDelay, onBeforeRun, onCleanupSuccess, onCleanupFailure) {
-            if (numCleanupAttempts === void 0) {
-                numCleanupAttempts = 3;
-            }
-            if (retryDelay === void 0) {
-                retryDelay = 5000;
-            }
+            if (numCleanupAttempts === void 0) { numCleanupAttempts = 3; }
+            if (retryDelay === void 0) { retryDelay = 5000; }
             var ctxRetriever;
             var batch;
             var requestInfo = null;
@@ -14622,9 +14982,7 @@ var OfficeExtension;
             return ClientRequestContext._runCommon(functionName, requestInfo, ctxRetriever, batchMode, batch, numCleanupAttempts, retryDelay, onBeforeRunWithOptions, onCleanupSuccess, onCleanupFailure);
         };
         ClientRequestContext.createErrorPromise = function (functionName, code) {
-            if (code === void 0) {
-                code = CoreResourceStrings.invalidArgument;
-            }
+            if (code === void 0) { code = CoreResourceStrings.invalidArgument; }
             return CoreUtility._createPromiseFromException(Utility.createRuntimeError(code, CoreUtility._getResourceString(code), functionName));
         };
         ClientRequestContext._runCommon = function (functionName, requestInfo, ctxRetriever, batchMode, runBody, numCleanupAttempts, retryDelay, onBeforeRun, onCleanupSuccess, onCleanupFailure) {
@@ -14685,7 +15043,8 @@ var OfficeExtension;
                 .then(function (result) {
                 succeeded = true;
                 resultOrError = result;
-            })["catch"](function (error) {
+            })
+                .catch(function (error) {
                 resultOrError = error;
             })
                 .then(function () {
@@ -14724,7 +15083,8 @@ var OfficeExtension;
                         if (onCleanupSuccess) {
                             onCleanupSuccess(cleanupCounter);
                         }
-                    })["catch"](function () {
+                    })
+                        .catch(function () {
                         if (onCleanupFailure) {
                             onCleanupFailure(cleanupCounter);
                         }
@@ -14849,6 +15209,7 @@ var OfficeExtension;
         Constants.objectPathInfoDoNotKeepReferenceFieldName = 'D';
         Constants.officeScriptEventId = 'X-OfficeScriptEventId';
         Constants.officeScriptFireRecordingEvent = 'X-OfficeScriptFireRecordingEvent';
+        Constants.officeControlId = 'X-OfficeControlId';
         return Constants;
     }(CommonConstants));
     OfficeExtension_1.Constants = Constants;
@@ -15032,7 +15393,8 @@ var OfficeExtension;
                 }
                 else if (this.m_registered && handlersResult.length == 0) {
                     ret = ret
-                        .then(function () { return _this.m_eventInfo.unregisterFunc(_this.m_callback); })["catch"](function (ex) {
+                        .then(function () { return _this.m_eventInfo.unregisterFunc(_this.m_callback); })
+                        .catch(function (ex) {
                         CoreUtility.log('Error when unregister event: ' + JSON.stringify(ex));
                     })
                         .then(function () { return (_this.m_registered = false); });
@@ -15046,7 +15408,8 @@ var OfficeExtension;
             for (var i = 0; i < this.m_handlers.length; i++) {
                 var handler = this.m_handlers[i];
                 var p = CoreUtility._createPromiseFromResult(null)
-                    .then(this.createFireOneEventHandlerFunc(handler, args))["catch"](function (ex) {
+                    .then(this.createFireOneEventHandlerFunc(handler, args))
+                    .catch(function (ex) {
                     CoreUtility.log('Error when invoke handler: ' + JSON.stringify(ex));
                 });
                 promises.push(p);
@@ -15316,13 +15679,26 @@ var OfficeExtension;
                 }
             }
         };
-        GenericEventRegistration.getGenericEventRegistration = function () {
-            if (!GenericEventRegistration.s_genericEventRegistration) {
-                GenericEventRegistration.s_genericEventRegistration = new GenericEventRegistration();
+        GenericEventRegistration.getGenericEventRegistration = function (controlId) {
+            if (CoreUtility.isNullOrUndefined(controlId)) {
+                controlId = '';
             }
-            return GenericEventRegistration.s_genericEventRegistration;
+            var ret = GenericEventRegistration.s_genericEventRegistrations[controlId];
+            if (!ret) {
+                ret = new GenericEventRegistration();
+                GenericEventRegistration.s_genericEventRegistrations[controlId] = ret;
+            }
+            return ret;
+        };
+        GenericEventRegistration.peekGenericEventRegistrationOrNull = function (controlId) {
+            if (CoreUtility.isNullOrUndefined(controlId)) {
+                controlId = '';
+            }
+            var ret = GenericEventRegistration.s_genericEventRegistrations[controlId];
+            return ret;
         };
         GenericEventRegistration.richApiMessageEventCategory = 65536;
+        GenericEventRegistration.s_genericEventRegistrations = {};
         return GenericEventRegistration;
     }());
     OfficeExtension_1.GenericEventRegistration = GenericEventRegistration;
@@ -15331,7 +15707,7 @@ var OfficeExtension;
     }
     OfficeExtension_1._testSetRichApiMessageReadyImpl = _testSetRichApiMessageReadyImpl;
     function _testTriggerRichApiMessageEvent(msg) {
-        GenericEventRegistration.getGenericEventRegistration()._handleRichApiMessage(msg);
+        GenericEventRegistration.getGenericEventRegistration('')._handleRichApiMessage(msg);
     }
     OfficeExtension_1._testTriggerRichApiMessageEvent = _testTriggerRichApiMessageEvent;
     var GenericEventHandlers = (function (_super) {
@@ -15346,13 +15722,14 @@ var OfficeExtension;
             if (this._handlers.length == 0 && this.m_genericEventInfo.registerFunc) {
                 this.m_genericEventInfo.registerFunc();
             }
-            if (!GenericEventRegistration.getGenericEventRegistration().isReady) {
-                this._context._pendingRequest._addPreSyncPromise(GenericEventRegistration.getGenericEventRegistration().ready());
+            var controlId = this._context._controlId;
+            if (!GenericEventRegistration.getGenericEventRegistration(controlId).isReady) {
+                this._context._pendingRequest._addPreSyncPromise(GenericEventRegistration.getGenericEventRegistration(controlId).ready());
             }
             ActionFactory.createTraceMarkerForCallback(this._context, function () {
                 _this._handlers.push(handler);
                 if (_this._handlers.length == 1) {
-                    GenericEventRegistration.getGenericEventRegistration().register(_this.m_genericEventInfo.eventType, _this.m_genericEventInfo.getTargetIdFunc(), _this._callback);
+                    GenericEventRegistration.getGenericEventRegistration(controlId).register(_this.m_genericEventInfo.eventType, _this.m_genericEventInfo.getTargetIdFunc(), _this._callback);
                 }
             });
             return new EventHandlerResult(this._context, this, handler);
@@ -15362,6 +15739,7 @@ var OfficeExtension;
             if (this._handlers.length == 1 && this.m_genericEventInfo.unregisterFunc) {
                 this.m_genericEventInfo.unregisterFunc();
             }
+            var controlId = this._context._controlId;
             ActionFactory.createTraceMarkerForCallback(this._context, function () {
                 var handlers = _this._handlers;
                 for (var index = handlers.length - 1; index >= 0; index--) {
@@ -15371,7 +15749,7 @@ var OfficeExtension;
                     }
                 }
                 if (handlers.length == 0) {
-                    GenericEventRegistration.getGenericEventRegistration().unregister(_this.m_genericEventInfo.eventType, _this.m_genericEventInfo.getTargetIdFunc(), _this._callback);
+                    GenericEventRegistration.getGenericEventRegistration(controlId).unregister(_this.m_genericEventInfo.eventType, _this.m_genericEventInfo.getTargetIdFunc(), _this._callback);
                 }
             });
         };
@@ -16081,8 +16459,18 @@ var OfficeExtension;
         Utility.throwIfNotLoaded = function (propertyName, fieldValue, entityName, isNull) {
             if (!isNull &&
                 CoreUtility.isUndefined(fieldValue) &&
-                propertyName.charCodeAt(0) != Utility.s_underscoreCharCode) {
+                propertyName.charCodeAt(0) != Utility.s_underscoreCharCode &&
+                !Utility.s_suppressPropertyNotLoadedException) {
                 throw Utility.createPropertyNotLoadedException(entityName, propertyName);
+            }
+        };
+        Utility._getPropertyValueWithoutCheckLoaded = function (object, propertyName) {
+            Utility.s_suppressPropertyNotLoadedException = true;
+            try {
+                return object[propertyName];
+            }
+            finally {
+                Utility.s_suppressPropertyNotLoadedException = false;
             }
         };
         Utility.createPropertyNotLoadedException = function (entityName, propertyName) {
@@ -16261,10 +16649,16 @@ var OfficeExtension;
                 }
             });
         };
+        Utility.ensureTypeInitialized = function (type) {
+            var context = new ClientRequestContext();
+            var objectPath = ObjectPathFactory.createNewObjectObjectPath(context, "Temp", false, 0);
+            new type(context, objectPath);
+        };
         Utility.fieldName_m__items = 'm__items';
         Utility.fieldName_isCollection = '_isCollection';
         Utility._synchronousCleanup = false;
         Utility.s_underscoreCharCode = '_'.charCodeAt(0);
+        Utility.s_suppressPropertyNotLoadedException = false;
         return Utility;
     }(CommonUtility));
     OfficeExtension_1.Utility = Utility;
@@ -16362,7 +16756,7 @@ var OfficeExtension;
                             navigationProperties: elem[3],
                             scalarMethods: elem[4],
                             navigationMethods: elem[5],
-                            events: elem[8]
+                            events: elem[8],
                         };
                     }
                     this.buildClientObjectType(metadata.clientObjectTypes[i], options.fullyInitialize);
@@ -16580,7 +16974,7 @@ var OfficeExtension;
                             apiSetInfoOrdinal: elem[2],
                             originalName: this.getString(elem[3]),
                             setMethodApiFlags: elem[4],
-                            undoableApiSetInfoOrdinal: elem[5]
+                            undoableApiSetInfoOrdinal: elem[5],
                         };
                     }
                     this.buildScalarProperty(type, typeInfo, typeInfo.scalarProperties[i]);
@@ -17476,16 +17870,12 @@ var OfficeExtension;
             window.clearTimeout(this.m_timeoutId);
             this.m_enabled = false;
         };
-        Object.defineProperty(EmbeddedSession.prototype, "eventRegistration", {
-            get: function () {
-                if (!this.m_sessionEventManager) {
-                    this.m_sessionEventManager = new EventRegistration(this._registerEventImpl.bind(this), this._unregisterEventImpl.bind(this));
-                }
-                return this.m_sessionEventManager;
-            },
-            enumerable: true,
-            configurable: true
-        });
+        EmbeddedSession.prototype.getEventRegistration = function (controlId) {
+            if (!this.m_sessionEventManager) {
+                this.m_sessionEventManager = new EventRegistration(this._registerEventImpl.bind(this), this._unregisterEventImpl.bind(this));
+            }
+            return this.m_sessionEventManager;
+        };
         EmbeddedSession.prototype._createRequestExecutorOrNull = function () {
             return new EmbeddedRequestExecutor(this);
         };
@@ -17629,9 +18019,7 @@ var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b)
-                if (b.hasOwnProperty(p))
-                    d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
         return extendStatics(d, b);
     };
     return function (d, b) {
@@ -17642,89 +18030,37 @@ var __extends = (this && this.__extends) || (function () {
 })();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try {
-            step(generator.next(value));
-        }
-        catch (e) {
-            reject(e);
-        } }
-        function rejected(value) { try {
-            step(generator["throw"](value));
-        }
-        catch (e) {
-            reject(e);
-        } }
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
         function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function () { if (t[0] & 1)
-            throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function () { return this; }), g;
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
-        if (f)
-            throw new TypeError("Generator is already executing.");
-        while (_)
-            try {
-                if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done)
-                    return t;
-                if (y = 0, t)
-                    op = [op[0] & 2, t.value];
-                switch (op[0]) {
-                    case 0:
-                    case 1:
-                        t = op;
-                        break;
-                    case 4:
-                        _.label++;
-                        return { value: op[1], done: false };
-                    case 5:
-                        _.label++;
-                        y = op[1];
-                        op = [0];
-                        continue;
-                    case 7:
-                        op = _.ops.pop();
-                        _.trys.pop();
-                        continue;
-                    default:
-                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
-                            _ = 0;
-                            continue;
-                        }
-                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) {
-                            _.label = op[1];
-                            break;
-                        }
-                        if (op[0] === 6 && _.label < t[1]) {
-                            _.label = t[1];
-                            t = op;
-                            break;
-                        }
-                        if (t && _.label < t[2]) {
-                            _.label = t[2];
-                            _.ops.push(op);
-                            break;
-                        }
-                        if (t[2])
-                            _.ops.pop();
-                        _.trys.pop();
-                        continue;
-                }
-                op = body.call(thisArg, _);
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
             }
-            catch (e) {
-                op = [6, e];
-                y = 0;
-            }
-            finally {
-                f = t = 0;
-            }
-        if (op[0] & 5)
-            throw op[1];
-        return { value: op[0] ? op[1] : void 0, done: true };
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
 var OfficeCore;
@@ -17926,7 +18262,7 @@ var OfficeCore;
         };
         ABType.prototype.toJSON = function () {
             return _toJson(this, {
-                "value": this._V
+                "value": this._V,
             }, {});
         };
         ABType.prototype.ensureUnchanged = function (data) {
@@ -17947,6 +18283,118 @@ var OfficeCore;
         ExperimentErrorCodes["generalException"] = "GeneralException";
     })(ExperimentErrorCodes = OfficeCore.ExperimentErrorCodes || (OfficeCore.ExperimentErrorCodes = {}));
 })(OfficeCore || (OfficeCore = {}));
+var OfficeFirstPartyDialog;
+(function (OfficeFirstPartyDialog) {
+    var Dialog = (function () {
+        function Dialog(_dialogService) {
+            this._dialogService = _dialogService;
+        }
+        Dialog.prototype.close = function () {
+            this._dialogService.close();
+            return this._dialogService.context.sync();
+        };
+        Dialog.prototype.messageChild = function (message, options) {
+            if (DialogApiManager && DialogApiManager.messageChildRichApiBridge) {
+                DialogApiManager.messageChildRichApiBridge(message, options);
+            }
+        };
+        return Dialog;
+    }());
+    OfficeFirstPartyDialog.Dialog = Dialog;
+    function lookupErrorCodeAndMessage(internalCode) {
+        var _a;
+        var table = (_a = {},
+            _a[12002] = { code: "InvalidUrl", message: "Cannot load URL, no such page or bad URL syntax." },
+            _a[12003] = { code: "InvalidUrl", message: "HTTPS is required." },
+            _a[12004] = { code: "Untrusted", message: "Domain is not trusted." },
+            _a[12005] = { code: "InvalidUrl", message: "HTTPS is required." },
+            _a[12007] = { code: "FailedToOpen", message: "Another dialog is already opened." },
+            _a);
+        if (table[internalCode]) {
+            return table[internalCode];
+        }
+        else {
+            return { code: "Unknown", message: "An unknown error has occured with code: " + internalCode };
+        }
+    }
+    function displayWebDialog(url, options) {
+        if (options === void 0) { options = {}; }
+        return new OfficeExtension.CoreUtility.Promise(function (resolve, reject) {
+            if (options.width && options.height && (!isInt(options.width) || !isInt(options.height))) {
+                throw new OfficeExtension.Error({ code: "InvalidArgument", message: 'Dimensions must be "number%" or number.' });
+            }
+            var ctx = new OfficeExtension.ClientRequestContext();
+            var dialogService = OfficeCore.FirstPartyDialogService.newObject(ctx);
+            var dialog = new OfficeFirstPartyDialog.Dialog(dialogService);
+            var eventResult = dialogService.onDialogMessage.add(function (args) {
+                OfficeExtension.Utility.log("dialogMessageHandler:" + JSON.stringify(args));
+                var parsedMessage = JSON.parse(args.message);
+                var eventError = parsedMessage.errorCode
+                    ? new OfficeExtension.Error(lookupErrorCodeAndMessage(parsedMessage.errorCode))
+                    : null;
+                var messageType = parsedMessage.type;
+                var origin = parsedMessage.origin;
+                var messageContent = parsedMessage.message;
+                switch (messageType) {
+                    case 17:
+                        if (eventError) {
+                            reject(eventError);
+                        }
+                        else {
+                            resolve(dialog);
+                        }
+                        break;
+                    case 12:
+                        if (options.onMessage) {
+                            options.onMessage(messageContent, dialog, origin);
+                        }
+                        break;
+                    case 10:
+                    default:
+                        if (parsedMessage.errorCode === 12006) {
+                            if (eventResult) {
+                                eventResult.remove();
+                                ctx.sync();
+                            }
+                            if (options.onClose) {
+                                options.onClose();
+                            }
+                        }
+                        else {
+                            if (options.onRuntimeError) {
+                                options.onRuntimeError(eventError, dialog);
+                                reject(eventError);
+                            }
+                        }
+                }
+                return OfficeExtension.CoreUtility.Promise.resolve();
+            });
+            return ctx.sync()
+                .then(function () {
+                var dialogOptions = {
+                    width: options.width ? parseInt(options.width) : 50,
+                    height: options.height ? parseInt(options.height) : 50,
+                    displayInIFrame: options.displayInIFrame,
+                    dialogTitle: options.dialogTitle
+                };
+                dialogService.displayDialog(url, dialogOptions);
+                return ctx.sync();
+            })
+                .catch(function (e) {
+                reject(e);
+            });
+        });
+        function isInt(value) {
+            return (/^(\-|\+)?([0-9]+)%?$/.test(value));
+        }
+    }
+    OfficeFirstPartyDialog.displayWebDialog = displayWebDialog;
+    var DialogEventType;
+    (function (DialogEventType) {
+        DialogEventType[DialogEventType["dialogMessageReceived"] = 0] = "dialogMessageReceived";
+        DialogEventType[DialogEventType["dialogEventReceived"] = 1] = "dialogEventReceived";
+    })(DialogEventType || (DialogEventType = {}));
+})(OfficeFirstPartyDialog || (OfficeFirstPartyDialog = {}));
 var OfficeCore;
 (function (OfficeCore) {
     OfficeCore.OfficeOnlineDomainList = [
@@ -18414,19 +18862,22 @@ var OfficeFirstPartyAuth;
 (function (OfficeFirstPartyAuth) {
     var WebAuthReplyUrlsStorageKey = "officeWebAuthReplyUrls";
     var loaded = false;
-    OfficeFirstPartyAuth.authFlow = "implicit";
+    OfficeFirstPartyAuth.authFlow = "authcode";
     OfficeFirstPartyAuth.autoPopup = false;
+    OfficeFirstPartyAuth.upnCheck = true;
+    OfficeFirstPartyAuth.msal = "https://alcdn.msauth.net/browser/2.21.0/js/msal-browser.min.js";
     OfficeFirstPartyAuth.debugging = false;
+    OfficeFirstPartyAuth.delay = 0;
+    OfficeFirstPartyAuth.delayMsal = 0;
     function load(replyUrl) {
         return new OfficeExtension.CoreUtility.Promise(function (resolve, reject) {
             if (OSF.WebAuth && OSF._OfficeAppFactory.getHostInfo().hostPlatform == "web") {
                 var retrievedAuthContext = false;
-                var errorMessage;
                 try {
                     if (!Office || !Office.context || !Office.context.webAuth) {
                         reject({
                             code: "GetAuthContextAsyncMissing",
-                            message: (typeof (Strings) !== 'undefined' && Strings.OfficeOM.L_ImplicitGetAuthContextMissing) ? Strings.OfficeOM.L_ImplicitGetAuthContextMissing : ""
+                            message: "Office:[" + !Office + "],Office.context:[" + !Office.context + "],Office.context.webAuth:[" + !Office.context.webAuth + "]"
                         });
                         return;
                     }
@@ -18437,7 +18888,7 @@ var OfficeFirstPartyAuth;
                             if (!authContext || authContext.isAnonymous) {
                                 reject({
                                     code: "CannotGetAuthContext",
-                                    message: (typeof (Strings) !== 'undefined' && Strings.OfficeOM.L_ImplicitGetAuthContextMissing) ? Strings.OfficeOM.L_ImplicitGetAuthContextMissing : ""
+                                    message: authContext.Error
                                 });
                                 return;
                             }
@@ -18445,6 +18896,9 @@ var OfficeFirstPartyAuth;
                             OSF.WebAuth.config = {
                                 authFlow: OfficeFirstPartyAuth.authFlow,
                                 authVersion: (OfficeFirstPartyAuth.authVersion) ? OfficeFirstPartyAuth.authVersion : null,
+                                msal: (OfficeFirstPartyAuth.authVersion === "flight") ? OfficeFirstPartyAuth.msal : null,
+                                delayWebAuth: OfficeFirstPartyAuth.delay,
+                                delayMsal: OfficeFirstPartyAuth.delayMsal,
                                 debugging: OfficeFirstPartyAuth.debugging,
                                 authority: (OfficeFirstPartyAuth.authorityOverride) ? OfficeFirstPartyAuth.authorityOverride : authContext.authority,
                                 idp: authContext.authorityType.toLowerCase(),
@@ -18453,49 +18907,50 @@ var OfficeFirstPartyAuth;
                                 upn: authContext.upn,
                                 telemetryInstance: 'otel',
                                 autoPopup: OfficeFirstPartyAuth.autoPopup,
-                                enableConsoleLogging: OfficeFirstPartyAuth.debugging
+                                enableUpnCheck: OfficeFirstPartyAuth.upnCheck,
+                                enableConsoleLogging: OfficeFirstPartyAuth.debugging,
                             };
-                            OSF.WebAuth.load().then(function (loadResult) {
+                            OSF.WebAuth.load().then(function (result) {
                                 loaded = true;
-                                logLoadEvent(loadResult, true);
+                                logLoadEvent(result, loaded);
                                 resolve();
-                            })["catch"](function (loadError) {
-                                logLoadEvent(loadError, false);
+                            }).catch(function (result) {
+                                logLoadEvent(result, loaded);
                                 reject({
                                     code: "PackageNotLoaded",
-                                    message: (typeof (Strings) !== 'undefined' && Strings.OfficeOM.L_ImplicitNotLoaded) ? Strings.OfficeOM.L_ImplicitNotLoaded : ""
+                                    message: (result instanceof Event) ? result.type : result
                                 });
                             });
-                            var finalReplyUrl = (replyUrl) ? replyUrl : window.location.href.split("?")[0];
-                            var replyUrls = sessionStorage.getItem(WebAuthReplyUrlsStorageKey);
-                            if (replyUrls || replyUrls === "") {
-                                replyUrls = finalReplyUrl;
+                            if (OfficeFirstPartyAuth.authFlow === "implicit") {
+                                var finalReplyUrl = (replyUrl) ? replyUrl : window.location.href.split("?")[0];
+                                var replyUrls = sessionStorage.getItem(WebAuthReplyUrlsStorageKey);
+                                if (replyUrls || replyUrls === "") {
+                                    replyUrls = finalReplyUrl;
+                                }
+                                else {
+                                    replyUrls += ", " + finalReplyUrl;
+                                }
+                                if (replyUrls)
+                                    sessionStorage.setItem(WebAuthReplyUrlsStorageKey, replyUrls);
                             }
-                            else {
-                                replyUrls += ", " + finalReplyUrl;
-                            }
-                            if (replyUrls)
-                                sessionStorage.setItem(WebAuthReplyUrlsStorageKey, replyUrls);
                         }
                         else {
                             OSF.WebAuth.config = null;
-                            errorMessage = JSON.stringify(result);
                             reject({
                                 code: "CannotGetAuthContext",
-                                message: errorMessage
+                                message: result.status
                             });
                         }
                     });
                 }
                 catch (e) {
-                    errorMessage = e;
                     OSF.WebAuth.config = null;
                     OSF.WebAuth.load().then(function () {
                         resolve();
-                    })["catch"](function () {
+                    }).catch(function () {
                         reject({
                             code: retrievedAuthContext ? "CannotGetAuthContext" : "FailedToLoad",
-                            message: errorMessage
+                            message: e
                         });
                     });
                 }
@@ -18521,21 +18976,24 @@ var OfficeFirstPartyAuth;
                         if (OSF.WebAuth && loaded) {
                             if (OSF.WebAuth.config.appIds[0]) {
                                 OSF.WebAuth.getToken(options.resource, OSF.WebAuth.config.appIds[0], OSF._OfficeAppFactory.getHostInfo().osfControlAppCorrelationId, (behaviorOption && behaviorOption.popup) ? behaviorOption.popup : null).then(function (result) {
-                                    logAcquireEvent(result, true, options.resource, (behaviorOption && behaviorOption.popup) ? behaviorOption.popup : null);
+                                    logAcquireEvent(result, true, (behaviorOption && behaviorOption.popup) ? behaviorOption.popup : false);
                                     resolve({
                                         accessToken: result.Token,
                                         tokenIdenityType: (OSF.WebAuth.config.idp.toLowerCase() == "msa")
                                             ? OfficeCore.IdentityType.microsoftAccount
                                             : OfficeCore.IdentityType.organizationAccount
                                     });
-                                })["catch"](function (result) {
-                                    logAcquireEvent(result, false, options.resource, (behaviorOption && behaviorOption.popup) ? behaviorOption.popup : null, result.ErrorCode);
-                                    reject({ code: result.ErrorCode, message: result.ErrorMessage });
+                                }).catch(function (result) {
+                                    logAcquireEvent(result, false, (behaviorOption && behaviorOption.popup) ? behaviorOption.popup : false);
+                                    reject({
+                                        code: result.ErrorCode,
+                                        message: (result instanceof Event) ? result.type : result.ErrorMessage
+                                    });
                                 });
                             }
                         }
                         else {
-                            logUnexpectedAcquireEvent(loaded, OSF.WebAuth.loadAttempts);
+                            logUnexpectedAcquire(loaded, OSF.WebAuth.loadAttempts);
                         }
                     }
                     else {
@@ -18555,7 +19013,7 @@ var OfficeFirstPartyAuth;
                 var handler_1 = auth_1.onTokenReceived.add(function (arg) {
                     if (!OfficeExtension.CoreUtility.isNullOrUndefined(arg)) {
                         handler_1.remove();
-                        context_1.sync()["catch"](function () {
+                        context_1.sync().catch(function () {
                         });
                         if (arg.code == 0) {
                             resolve(arg.tokenValue);
@@ -18589,7 +19047,8 @@ var OfficeFirstPartyAuth;
                             resolve(apiResult.value);
                         }
                     });
-                })["catch"](function (e) {
+                })
+                    .catch(function (e) {
                     reject(e);
                 });
             }
@@ -18612,23 +19071,16 @@ var OfficeFirstPartyAuth;
     }
     OfficeFirstPartyAuth.getIdentities = getIdentities;
     function logLoadEvent(result, succeeded) {
-        if (OfficeFirstPartyAuth.debugging) {
-            console.log("Logging WebAuthJs load event");
-        }
         if (typeof OTel !== "undefined") {
             OTel.OTelLogger.onTelemetryLoaded(function () {
                 var telemetryData = [
                     oteljs.makeStringDataField('IdentityProvider', OSF.WebAuth.config.idp),
                     oteljs.makeStringDataField('AppId', OSF.WebAuth.config.appIds[0]),
-                    oteljs.makeBooleanDataField('Js', (typeof Implicit !== "undefined" || typeof BrowserAuth !== "undefined") ? true : false),
-                    oteljs.makeBooleanDataField('Result', succeeded)
+                    oteljs.makeStringDataField('Target', OSF.WebAuth.config.authFlow),
+                    oteljs.makeBooleanDataField('Result', succeeded),
+                    oteljs.makeStringDataField('Error', (result instanceof Event) ? result.type : "")
                 ];
-                if (OSF.WebAuth.config.telemetry) {
-                    for (var key in OSF.WebAuth.config.telemetry) {
-                        telemetryData.push(oteljs.makeStringDataField(key, OSF.WebAuth.config.telemetry[key]));
-                    }
-                }
-                if (result && result.Telemetry) {
+                if (result && !(result instanceof Event) && result.Telemetry) {
                     for (var key in result.Telemetry) {
                         if (!result.Telemetry[key]) {
                             continue;
@@ -18658,26 +19110,18 @@ var OfficeFirstPartyAuth;
             });
         }
     }
-    function logAcquireEvent(result, succeeded, target, popup, message) {
-        if (OfficeFirstPartyAuth.debugging) {
-            console.log("Logging WebAuthJs acquire event");
-        }
+    function logAcquireEvent(result, succeeded, popup) {
         if (typeof OTel !== "undefined") {
             OTel.OTelLogger.onTelemetryLoaded(function () {
                 var telemetryData = [
                     oteljs.makeStringDataField('IdentityProvider', OSF.WebAuth.config.idp),
                     oteljs.makeStringDataField('AppId', OSF.WebAuth.config.appIds[0]),
-                    oteljs.makeStringDataField('Target', target),
-                    oteljs.makeBooleanDataField('Popup', (typeof popup === "boolean") ? popup : false),
+                    oteljs.makeStringDataField('Target', OSF.WebAuth.config.authFlow),
                     oteljs.makeBooleanDataField('Result', succeeded),
-                    oteljs.makeStringDataField('Error', message)
+                    oteljs.makeStringDataField('Error', (result instanceof Event) ? result.type : result.ErrorCode),
+                    oteljs.makeBooleanDataField('Popup', (typeof popup === "boolean") ? popup : false),
                 ];
-                if (OSF.WebAuth.config.telemetry) {
-                    for (var key in OSF.WebAuth.config.telemetry) {
-                        telemetryData.push(oteljs.makeStringDataField(key, OSF.WebAuth.config.telemetry[key]));
-                    }
-                }
-                if (result && result.Telemetry) {
+                if (result && !(result instanceof Event) && result.Telemetry) {
                     for (var key in result.Telemetry) {
                         if (!result.Telemetry[key]) {
                             continue;
@@ -18704,15 +19148,12 @@ var OfficeFirstPartyAuth;
             });
         }
     }
-    function logUnexpectedAcquireEvent(loadResult, loadAttempts) {
-        if (OfficeFirstPartyAuth.debugging) {
-            console.log("Logging WebAuthJs unexpected acquire event");
-        }
+    function logUnexpectedAcquire(loadResult, loadAttempts) {
         if (typeof OTel !== "undefined") {
             OTel.OTelLogger.onTelemetryLoaded(function () {
                 var telemetryData = [
                     oteljs.makeBooleanDataField('Loaded', loadResult),
-                    oteljs.makeInt64DataField('LoadAttempts', loadAttempts)
+                    oteljs.makeInt64DataField('LoadAttempts', (typeof loadAttempts === "number") ? loadAttempts : 0)
                 ];
                 OTel.OTelLogger.sendTelemetryEvent({
                     eventName: "Office.Extensibility.OfficeJs.OfficeFirstPartyAuth.UnexpectedAcquire",
@@ -18993,7 +19434,7 @@ var OfficeCore;
         RoamingSetting.prototype.toJSON = function () {
             return _toJson(this, {
                 "id": this._I,
-                "value": this._V
+                "value": this._V,
             }, {});
         };
         RoamingSetting.prototype.setMockData = function (data) {
@@ -19042,6 +19483,64 @@ var OfficeCore;
         return RoamingSettingCollection;
     }(OfficeExtension.ClientObject));
     OfficeCore.RoamingSettingCollection = RoamingSettingCollection;
+    var _typeBeforeDocumentCloseNotification = "BeforeDocumentCloseNotification";
+    var BeforeDocumentCloseNotification = (function (_super) {
+        __extends(BeforeDocumentCloseNotification, _super);
+        function BeforeDocumentCloseNotification() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(BeforeDocumentCloseNotification.prototype, "_className", {
+            get: function () {
+                return "BeforeDocumentCloseNotification";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        BeforeDocumentCloseNotification.prototype.disable = function () {
+            _invokeMethod(this, "Disable", 1, [], 4, 0);
+        };
+        BeforeDocumentCloseNotification.prototype.enable = function () {
+            _invokeMethod(this, "Enable", 1, [], 4, 0);
+        };
+        BeforeDocumentCloseNotification.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+        };
+        BeforeDocumentCloseNotification.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        BeforeDocumentCloseNotification.newObject = function (context) {
+            return _createTopLevelServiceObject(OfficeCore.BeforeDocumentCloseNotification, context, "Microsoft.BeforeDocumentCloseNotification.BeforeDocumentCloseNotification", false, 4);
+        };
+        Object.defineProperty(BeforeDocumentCloseNotification.prototype, "onBeforeCloseNotificationCancelled", {
+            get: function () {
+                if (!this.m_beforeCloseNotificationCancelled) {
+                    this.m_beforeCloseNotificationCancelled = new OfficeExtension.GenericEventHandlers(this.context, this, "BeforeCloseNotificationCancelled", {
+                        eventType: 65540,
+                        registerFunc: function () { return OfficeExtension.Utility._createPromiseFromResult(null); },
+                        unregisterFunc: function () { return OfficeExtension.Utility._createPromiseFromResult(null); },
+                        getTargetIdFunc: function () { return ""; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {};
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_beforeCloseNotificationCancelled;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        BeforeDocumentCloseNotification.prototype.toJSON = function () {
+            return _toJson(this, {}, {});
+        };
+        return BeforeDocumentCloseNotification;
+    }(OfficeExtension.ClientObject));
+    OfficeCore.BeforeDocumentCloseNotification = BeforeDocumentCloseNotification;
     var ServiceProvider;
     (function (ServiceProvider) {
         ServiceProvider["ariaBrowserPipeUrl"] = "AriaBrowserPipeUrl";
@@ -19229,7 +19728,7 @@ var OfficeCore;
         };
         DynamicRibbon.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "buttons": this._B
+                "buttons": this._B,
             });
         };
         return DynamicRibbon;
@@ -19304,7 +19803,7 @@ var OfficeCore;
         };
         RibbonTab.prototype.toJSON = function () {
             return _toJson(this, {
-                "id": this._I
+                "id": this._I,
             }, {});
         };
         RibbonTab.prototype.setMockData = function (data) {
@@ -19427,7 +19926,7 @@ var OfficeCore;
             return _toJson(this, {
                 "enabled": this._E,
                 "id": this._I,
-                "label": this._L
+                "label": this._L,
             }, {});
         };
         RibbonButton.prototype.setMockData = function (data) {
@@ -19511,6 +20010,73 @@ var OfficeCore;
         return RibbonButtonCollection;
     }(OfficeExtension.ClientObject));
     OfficeCore.RibbonButtonCollection = RibbonButtonCollection;
+    var _typeFirstPartyDialogService = "FirstPartyDialogService";
+    var FirstPartyDialogService = (function (_super) {
+        __extends(FirstPartyDialogService, _super);
+        function FirstPartyDialogService() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(FirstPartyDialogService.prototype, "_className", {
+            get: function () {
+                return "FirstPartyDialogService";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        FirstPartyDialogService.prototype.close = function () {
+            _invokeMethod(this, "Close", 1, [], 4 | 1, 0);
+        };
+        FirstPartyDialogService.prototype.displayDialog = function (url, options) {
+            _invokeMethod(this, "DisplayDialog", 1, [url, options], 4 | 1, 0);
+        };
+        FirstPartyDialogService.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+        };
+        FirstPartyDialogService.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        FirstPartyDialogService.newObject = function (context) {
+            return _createTopLevelServiceObject(OfficeCore.FirstPartyDialogService, context, "Microsoft.FirstPartyDialog.FirstPartyDialogService", false, 4);
+        };
+        Object.defineProperty(FirstPartyDialogService.prototype, "onDialogMessage", {
+            get: function () {
+                var _this = this;
+                if (!this.m_dialogMessage) {
+                    this.m_dialogMessage = new OfficeExtension.GenericEventHandlers(this.context, this, "DialogMessage", {
+                        eventType: 65536,
+                        registerFunc: function () { return OfficeExtension.Utility._createPromiseFromResult(null); },
+                        unregisterFunc: function () { return OfficeExtension.Utility._createPromiseFromResult(null); },
+                        getTargetIdFunc: function () { return ""; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = _CC.FirstPartyDialogService_DialogMessage_EventArgsTransform(_this, value);
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_dialogMessage;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        FirstPartyDialogService.prototype.toJSON = function () {
+            return _toJson(this, {}, {});
+        };
+        return FirstPartyDialogService;
+    }(OfficeExtension.ClientObject));
+    OfficeCore.FirstPartyDialogService = FirstPartyDialogService;
+    (function (_CC) {
+        function FirstPartyDialogService_DialogMessage_EventArgsTransform(thisObj, args) {
+            return {
+                message: args.message,
+            };
+        }
+        _CC.FirstPartyDialogService_DialogMessage_EventArgsTransform = FirstPartyDialogService_DialogMessage_EventArgsTransform;
+    })(_CC = OfficeCore._CC || (OfficeCore._CC = {}));
     var TimeStringFormat;
     (function (TimeStringFormat) {
         TimeStringFormat["shortTime"] = "ShortTime";
@@ -19702,7 +20268,7 @@ var OfficeCore;
         Comment.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        Comment.prototype["delete"] = function () {
+        Comment.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Comment.prototype.getParentOrSelf = function () {
@@ -19779,9 +20345,9 @@ var OfficeCore;
                 "level": this._L,
                 "mentions": this._M,
                 "resolved": this._Re,
-                "text": this._T
+                "text": this._T,
             }, {
-                "replies": this._R
+                "replies": this._R,
             });
         };
         Comment.prototype.setMockData = function (data) {
@@ -19865,6 +20431,42 @@ var OfficeCore;
         return CommentCollection;
     }(OfficeExtension.ClientObject));
     OfficeCore.CommentCollection = CommentCollection;
+    var _typeExtensionLifeCycle = "ExtensionLifeCycle";
+    var ExtensionLifeCycle = (function (_super) {
+        __extends(ExtensionLifeCycle, _super);
+        function ExtensionLifeCycle() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(ExtensionLifeCycle.prototype, "_className", {
+            get: function () {
+                return "ExtensionLifeCycle";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        ExtensionLifeCycle.prototype.launchExtensionComponent = function (componentId, componentType, launchProperties) {
+            _invokeMethod(this, "LaunchExtensionComponent", 1, [componentId, componentType, launchProperties], 4 | 1, 0);
+        };
+        ExtensionLifeCycle.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+        };
+        ExtensionLifeCycle.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        ExtensionLifeCycle.newObject = function (context) {
+            return _createTopLevelServiceObject(OfficeCore.ExtensionLifeCycle, context, "Microsoft.OfficeSharedApi.ExtensionLifeCycle", false, 4);
+        };
+        ExtensionLifeCycle.prototype.toJSON = function () {
+            return _toJson(this, {}, {});
+        };
+        return ExtensionLifeCycle;
+    }(OfficeExtension.ClientObject));
+    OfficeCore.ExtensionLifeCycle = ExtensionLifeCycle;
     var CommentTextFormat;
     (function (CommentTextFormat) {
         CommentTextFormat["plain"] = "Plain";
@@ -20036,7 +20638,7 @@ var OfficeCore;
         MemberInfoList.prototype.toJSON = function () {
             return _toJson(this, {
                 "isWarmedUp": this._I,
-                "isWarmingUp": this._Is
+                "isWarmingUp": this._Is,
             }, {});
         };
         MemberInfoList.prototype.setMockData = function (data) {
@@ -20431,7 +21033,7 @@ var OfficeCore;
                 "phones": this._P,
                 "sipAddresses": this._S,
                 "title": this._T,
-                "webSites": this._W
+                "webSites": this._W,
             }, {});
         };
         PersonaInfoSource.prototype.setMockData = function (data) {
@@ -20726,9 +21328,9 @@ var OfficeCore;
                 "office": this._O,
                 "sipAddresses": this._S,
                 "title": this._T,
-                "webSites": this._W
+                "webSites": this._W,
             }, {
-                "sources": this._So
+                "sources": this._So,
             });
         };
         PersonaInfo.prototype.setMockData = function (data) {
@@ -21080,7 +21682,7 @@ var OfficeCore;
                 "status": this._S,
                 "timezone": this._T,
                 "timezoneBias": this._Ti,
-                "voiceMailUri": this._V
+                "voiceMailUri": this._V,
             }, {});
         };
         PersonaUnifiedCommunicationInfo.prototype.setMockData = function (data) {
@@ -21313,7 +21915,7 @@ var OfficeCore;
         PersonaOrganizationInfo.prototype.toJSON = function () {
             return _toJson(this, {
                 "isWarmedUp": this._I,
-                "isWarmingUp": this._Is
+                "isWarmingUp": this._Is,
             }, {});
         };
         PersonaOrganizationInfo.prototype.setMockData = function (data) {
@@ -21627,7 +22229,7 @@ var OfficeCore;
                 "ownerCount": this._Ow,
                 "planner": this._P,
                 "site": this._S,
-                "subscriptionEnabled": this._Su
+                "subscriptionEnabled": this._Su,
             }, {});
         };
         UnifiedGroupInfo.prototype.setMockData = function (data) {
@@ -21858,12 +22460,12 @@ var OfficeCore;
                 "diagnosticId": this._D,
                 "hostId": this._H,
                 "instanceId": this._I,
-                "type": this._T
+                "type": this._T,
             }, {
                 "organization": this._O,
                 "personaInfo": this._P,
                 "unifiedCommunicationInfo": this._U,
-                "unifiedGroupInfo": this._Un
+                "unifiedGroupInfo": this._Un,
             });
         };
         Persona.prototype.setMockData = function (data) {
@@ -22223,7 +22825,7 @@ var OfficeCore;
         });
         PersonaLifetime.prototype.toJSON = function () {
             return _toJson(this, {
-                "instanceId": this._I
+                "instanceId": this._I,
             }, {});
         };
         PersonaLifetime.prototype.setMockData = function (data) {
@@ -22403,7 +23005,7 @@ var OfficeCore;
         LokiTokenProvider.prototype.toJSON = function () {
             return _toJson(this, {
                 "emailOrUpn": this._E,
-                "instanceId": this._I
+                "instanceId": this._I,
             }, {});
         };
         LokiTokenProvider.prototype.setMockData = function (data) {
@@ -22669,7 +23271,7 @@ var OfficeCore;
             return _invokeMethod(this, "GetAppRuntimeStartState", 1, [], 4, 0);
         };
         AppRuntimePersistenceService.prototype.setAppRuntimeStartState = function (appRuntimeState) {
-            _invokeMethod(this, "SetAppRuntimeStartState", 0, [appRuntimeState], 0, 0);
+            _invokeMethod(this, "SetAppRuntimeStartState", 0, [appRuntimeState], _calculateApiFlags(2, "SharedRuntimeInternal", "1.2"), 0);
         };
         AppRuntimePersistenceService.prototype._handleResult = function (value) {
             _super.prototype._handleResult.call(this, value);
@@ -22708,7 +23310,7 @@ var OfficeCore;
             return _invokeMethod(this, "GetAppRuntimeState", 1, [], 4, 0);
         };
         AppRuntimeService.prototype.setAppRuntimeState = function (appRuntimeState) {
-            _invokeMethod(this, "SetAppRuntimeState", 0, [appRuntimeState], 0, 0);
+            _invokeMethod(this, "SetAppRuntimeState", 0, [appRuntimeState], _calculateApiFlags(2, "SharedRuntimeInternal", "1.2"), 0);
         };
         AppRuntimeService.prototype._handleResult = function (value) {
             _super.prototype._handleResult.call(this, value);
@@ -22914,7 +23516,7 @@ var OfficeCore;
         });
         LicenseFeature.prototype.toJSON = function () {
             return _toJson(this, {
-                "id": this._I
+                "id": this._I,
             }, {});
         };
         LicenseFeature.prototype.setMockData = function (data) {
@@ -23021,7 +23623,7 @@ var OfficeCore;
         };
         MsaDeviceTicketOptions.prototype.toJSON = function () {
             return _toJson(this, {
-                "scopes": this._S
+                "scopes": this._S,
             }, {});
         };
         MsaDeviceTicketOptions.prototype.setMockData = function (data) {
@@ -23139,6 +23741,48 @@ var OfficeCore;
         return DialogPage;
     }(OfficeExtension.ClientObject));
     OfficeCore.DialogPage = DialogPage;
+    var _typeActionService = "ActionService";
+    var ActionService = (function (_super) {
+        __extends(ActionService, _super);
+        function ActionService() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(ActionService.prototype, "_className", {
+            get: function () {
+                return "ActionService";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        ActionService.prototype.areShortcutsInUse = function (shortcuts) {
+            return _invokeMethod(this, "AreShortcutsInUse", 0, [shortcuts], 0, 0);
+        };
+        ActionService.prototype.getShortcuts = function () {
+            return _invokeMethod(this, "GetShortcuts", 1, [], 4, 0);
+        };
+        ActionService.prototype.replaceShortcuts = function (shortcuts) {
+            _invokeMethod(this, "ReplaceShortcuts", 0, [shortcuts], 0, 0);
+        };
+        ActionService.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+        };
+        ActionService.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        ActionService.newObject = function (context) {
+            return _createTopLevelServiceObject(OfficeCore.ActionService, context, "Microsoft.Office.ActionService", false, 4);
+        };
+        ActionService.prototype.toJSON = function () {
+            return _toJson(this, {}, {});
+        };
+        return ActionService;
+    }(OfficeExtension.ClientObject));
+    OfficeCore.ActionService = ActionService;
     var ErrorCodes;
     (function (ErrorCodes) {
         ErrorCodes["apiNotAvailable"] = "ApiNotAvailable";
@@ -23157,6 +23801,7 @@ var OfficeCore;
         ErrorCodes["resourceNotSupported"] = "ResourceNotSupported";
         ErrorCodes["serverError"] = "ServerError";
         ErrorCodes["serviceUrlNotFound"] = "ServiceUrlNotFound";
+        ErrorCodes["sharedRuntimeNotAvailable"] = "SharedRuntimeNotAvailable";
         ErrorCodes["ticketInvalidParams"] = "TicketInvalidParams";
         ErrorCodes["ticketNetworkError"] = "TicketNetworkError";
         ErrorCodes["ticketUnauthorized"] = "TicketUnauthorized";
@@ -23311,27 +23956,156 @@ var Office;
                             return [4, eventService.context.sync()];
                         case 1:
                             _a.sent();
-                            ret = function () {
-                                return __awaiter(_this, void 0, void 0, function () {
-                                    return __generator(this, function (_a) {
-                                        switch (_a.label) {
-                                            case 0:
-                                                registrationToken.remove();
-                                                return [4, eventService.context.sync()];
-                                            case 1:
-                                                _a.sent();
-                                                return [2];
-                                        }
-                                    });
+                            ret = function () { return __awaiter(_this, void 0, void 0, function () {
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0:
+                                            registrationToken.remove();
+                                            return [4, eventService.context.sync()];
+                                        case 1:
+                                            _a.sent();
+                                            return [2];
+                                    }
                                 });
-                            };
+                            }); };
                             return [2, ret];
                     }
                 });
             });
         }
         addin.onVisibilityModeChanged = onVisibilityModeChanged;
+        var beforeDocumentCloseNotification;
+        (function (beforeDocumentCloseNotification) {
+            function _createRequestContext(wacPartition) {
+                var context = new OfficeCore.RequestContext();
+                context._requestFlagModifier |= 64;
+                if (wacPartition) {
+                    context._customData = 'WacPartition';
+                }
+                return context;
+            }
+            function enable() {
+                return __awaiter(this, void 0, void 0, function () {
+                    var isWac, context, beforeCloseNotification;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                isWac = false;
+                                if (OSF._OfficeAppFactory.getHostInfo().hostPlatform == 'web') {
+                                    isWac = true;
+                                }
+                                context = _createRequestContext(isWac);
+                                beforeCloseNotification = OfficeCore.BeforeDocumentCloseNotification.newObject(context);
+                                beforeCloseNotification.enable();
+                                return [4, context.sync()];
+                            case 1:
+                                _a.sent();
+                                return [2];
+                        }
+                    });
+                });
+            }
+            beforeDocumentCloseNotification.enable = enable;
+            function disable() {
+                return __awaiter(this, void 0, void 0, function () {
+                    var isWac, context, beforeCloseNotification;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                isWac = false;
+                                if (OSF._OfficeAppFactory.getHostInfo().hostPlatform == 'web') {
+                                    isWac = true;
+                                }
+                                context = _createRequestContext(isWac);
+                                beforeCloseNotification = OfficeCore.BeforeDocumentCloseNotification.newObject(context);
+                                beforeCloseNotification.disable();
+                                return [4, context.sync()];
+                            case 1:
+                                _a.sent();
+                                return [2];
+                        }
+                    });
+                });
+            }
+            beforeDocumentCloseNotification.disable = disable;
+            function onCloseActionCancelled(listener) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var isWac, context, beforeCloseNotification, registrationToken, ret;
+                    var _this = this;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                isWac = false;
+                                if (OSF._OfficeAppFactory.getHostInfo().hostPlatform == 'web') {
+                                    isWac = true;
+                                }
+                                context = _createRequestContext(isWac);
+                                beforeCloseNotification = OfficeCore.BeforeDocumentCloseNotification.newObject(context);
+                                registrationToken = beforeCloseNotification.onBeforeCloseNotificationCancelled.add(function (args) {
+                                    if (listener) {
+                                        listener();
+                                    }
+                                    return null;
+                                });
+                                return [4, context.sync()];
+                            case 1:
+                                _a.sent();
+                                ret = function () { return __awaiter(_this, void 0, void 0, function () {
+                                    return __generator(this, function (_a) {
+                                        switch (_a.label) {
+                                            case 0:
+                                                registrationToken.remove();
+                                                return [4, context.sync()];
+                                            case 1:
+                                                _a.sent();
+                                                return [2];
+                                        }
+                                    });
+                                }); };
+                                return [2, ret];
+                        }
+                    });
+                });
+            }
+            beforeDocumentCloseNotification.onCloseActionCancelled = onCloseActionCancelled;
+        })(beforeDocumentCloseNotification = addin.beforeDocumentCloseNotification || (addin.beforeDocumentCloseNotification = {}));
     })(addin = Office.addin || (Office.addin = {}));
+})(Office || (Office = {}));
+var Office;
+(function (Office) {
+    var ExtensionComponentType;
+    (function (ExtensionComponentType) {
+        ExtensionComponentType["taskpane"] = "Taskpane";
+    })(ExtensionComponentType || (ExtensionComponentType = {}));
+    var extensionLifeCycle;
+    (function (extensionLifeCycle) {
+        function _createRequestContext(wacPartition) {
+            var context = new OfficeCore.RequestContext();
+            return context;
+        }
+        function launchTaskpane(launchOptions) {
+            return __awaiter(this, void 0, void 0, function () {
+                var context, extensionLifecycle, settings;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            context = _createRequestContext(false);
+                            extensionLifecycle = OfficeCore.ExtensionLifeCycle.newObject(context);
+                            settings = launchOptions.settings;
+                            if (settings != undefined) {
+                                launchOptions.settings = OSF.OUtil.serializeSettings(settings);
+                            }
+                            extensionLifecycle.launchExtensionComponent("", ExtensionComponentType.taskpane, launchOptions);
+                            return [4, context.sync()];
+                        case 1:
+                            _a.sent();
+                            return [2];
+                    }
+                });
+            });
+        }
+        extensionLifeCycle.launchTaskpane = launchTaskpane;
+    })(extensionLifeCycle = Office.extensionLifeCycle || (Office.extensionLifeCycle = {}));
 })(Office || (Office = {}));
 var Office;
 (function (Office) {
@@ -23458,8 +24232,10 @@ var Office;
         var ActionMessageCategory = 2;
         var ActionDispatchMessageType = 1000;
         function init() {
-            var context = new OfficeExtension.ClientRequestContext();
-            return context.eventRegistration.register(5, "", _handleMessage);
+            if (typeof (OSF) !== "undefined" && OSF.DDA && OSF.DDA.RichApi && OSF.DDA.RichApi.richApiMessageManager) {
+                var context = new OfficeExtension.ClientRequestContext();
+                return context.eventRegistration.register(5, "", _handleMessage);
+            }
         }
         function setActionAssociation(association) {
             _association = association;
@@ -23560,7 +24336,7 @@ var Office;
                 })
                     .then(function () {
                     var hostInfo = OSF._OfficeAppFactory.getHostInfo();
-                    if (hostInfo.hostPlatform === "web" && hostInfo.hostType !== "word" && hostInfo.hostType !== "excel") {
+                    if (hostInfo.isDialog === true || (hostInfo.hostPlatform === "web" && hostInfo.hostType !== "word" && hostInfo.hostType !== "excel")) {
                         return;
                     }
                     else {
@@ -23601,6 +24377,80 @@ var Office;
         }
         initOnce();
     })(actionProxy || (actionProxy = {}));
+})(Office || (Office = {}));
+var Office;
+(function (Office) {
+    var actions;
+    (function (actions) {
+        function _createRequestContext() {
+            var context = new OfficeCore.RequestContext();
+            if (OSF._OfficeAppFactory.getHostInfo().hostPlatform == 'web') {
+                context._customData = 'WacPartition';
+            }
+            return context;
+        }
+        function areShortcutsInUse(shortcuts) {
+            return __awaiter(this, void 0, void 0, function () {
+                var context, actionService, inUseArray, inUseInfoArray, i;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            context = _createRequestContext();
+                            actionService = OfficeCore.ActionService.newObject(context);
+                            inUseArray = actionService.areShortcutsInUse(shortcuts);
+                            return [4, context.sync()];
+                        case 1:
+                            _a.sent();
+                            inUseInfoArray = [];
+                            for (i = 0; i < shortcuts.length; i++) {
+                                inUseInfoArray.push({
+                                    shortcut: shortcuts[i],
+                                    inUse: inUseArray.value[i]
+                                });
+                            }
+                            return [2, inUseInfoArray];
+                    }
+                });
+            });
+        }
+        actions.areShortcutsInUse = areShortcutsInUse;
+        function replaceShortcuts(shortcuts) {
+            return __awaiter(this, void 0, void 0, function () {
+                var context, actionService;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            context = _createRequestContext();
+                            actionService = OfficeCore.ActionService.newObject(context);
+                            actionService.replaceShortcuts(shortcuts);
+                            return [4, context.sync()];
+                        case 1:
+                            _a.sent();
+                            return [2];
+                    }
+                });
+            });
+        }
+        actions.replaceShortcuts = replaceShortcuts;
+        function getShortcuts() {
+            return __awaiter(this, void 0, void 0, function () {
+                var context, actionService, shortcuts;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            context = _createRequestContext();
+                            actionService = OfficeCore.ActionService.newObject(context);
+                            shortcuts = actionService.getShortcuts();
+                            return [4, context.sync()];
+                        case 1:
+                            _a.sent();
+                            return [2, shortcuts.value];
+                    }
+                });
+            });
+        }
+        actions.getShortcuts = getShortcuts;
+    })(actions = Office.actions || (Office.actions = {}));
 })(Office || (Office = {}));
 var Office;
 (function (Office) {
@@ -23688,9 +24538,7 @@ var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b)
-                if (b.hasOwnProperty(p))
-                    d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
         return extendStatics(d, b);
     };
     return function (d, b) {
@@ -23700,12 +24548,11 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function (t) {
+    __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
             s = arguments[i];
-            for (var p in s)
-                if (Object.prototype.hasOwnProperty.call(s, p))
-                    t[p] = s[p];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
         }
         return t;
     };
@@ -23818,7 +24665,7 @@ var Excel;
             Excel.icons[camelTitle][iconName] = obj;
         });
     });
-    function setRangePropertiesInBulk(range, propertyName, values) {
+    function setRangePropertiesInBulk(range, propertyName, values, apiFlags) {
         var maxCellCount = 1500;
         if (Array.isArray(values) && values.length > 0 && Array.isArray(values[0]) && (values.length * values[0].length > maxCellCount) && isExcel1_3OrAbove()) {
             var maxRowCount = Math.max(1, Math.round(maxCellCount / values[0].length));
@@ -23830,19 +24677,14 @@ var Excel;
                 }
                 var chunk = range.getRow(startRowIndex).untrack().getBoundingRect(range.getRow(startRowIndex + rowCount - 1).untrack()).untrack();
                 var valueSlice = values.slice(startRowIndex, startRowIndex + rowCount);
-                _invokeSetProperty(chunk, propertyName, valueSlice, 0);
+                _invokeSetProperty(chunk, propertyName, valueSlice, apiFlags != null ? apiFlags : 0);
             }
             return true;
         }
         return false;
     }
     function isExcelApiSetSupported(version) {
-        if (typeof (window) !== "undefined" && window.Office && window.Office.context && window.Office.context.requirements) {
-            return window.Office.context.requirements.isSetSupported("ExcelApi", version);
-        }
-        else {
-            return true;
-        }
+        return OfficeExtension.Utility.isSetSupported("ExcelApi", version.toString());
     }
     function isExcel1_3OrAbove() {
         return isExcelApiSetSupported(1.3);
@@ -23877,6 +24719,7 @@ var Excel;
         SessionOperation["Close"] = "Session.close";
         SessionOperation["CommitChanges"] = "Session.commitChanges";
         SessionOperation["Create"] = "Session.resolveRequestUrlAndHeaderInfo";
+        SessionOperation["Refresh"] = "Session.refreshSession";
     })(SessionOperation = Excel.SessionOperation || (Excel.SessionOperation = {}));
     var Session = (function () {
         function Session(workbookUrl, requestHeaders, _a) {
@@ -23903,7 +24746,7 @@ var Excel;
                     method: 'POST',
                     url: url,
                     headers: this.m_requestUrlAndHeaderInfo.headers,
-                    body: ''
+                    body: '',
                 };
                 return OfficeExtension.HttpUtility.sendRequest(req).then(function (resp) {
                     if (resp.statusCode !== HttpStatusCode.NoContent) {
@@ -23922,9 +24765,7 @@ var Excel;
         };
         Session.prototype.commitChanges = function (additionalRequestHeaders) {
             var _this = this;
-            if (additionalRequestHeaders === void 0) {
-                additionalRequestHeaders = {};
-            }
+            if (additionalRequestHeaders === void 0) { additionalRequestHeaders = {}; }
             if (!this.m_commitExplicitly) {
                 throw this.createError(HttpStatusCode.InternalServerError, 'Can not call commitChanges() if commitExplicitly is not set.', SessionOperation.CommitChanges);
             }
@@ -23958,9 +24799,7 @@ var Excel;
         };
         Session.prototype._resolveRequestUrlAndHeaderInfo = function (additionalRequestHeaders) {
             var _this = this;
-            if (additionalRequestHeaders === void 0) {
-                additionalRequestHeaders = {};
-            }
+            if (additionalRequestHeaders === void 0) { additionalRequestHeaders = {}; }
             if (this.m_requestUrlAndHeaderInfo) {
                 return OfficeExtension.Utility._createPromiseFromResult(this.m_requestUrlAndHeaderInfo);
             }
@@ -23994,7 +24833,7 @@ var Excel;
                         method: 'GET',
                         url: operationStatusBody.resourceLocation,
                         headers: __assign({}, additionalRequestHeaders, { Authorization: _this.getHeaderIgnoreCase(_this.m_requestHeaders, Session.AUTHORIZATION_HEADER) }),
-                        body: undefined
+                        body: undefined,
                     };
                     return OfficeExtension.HttpUtility.sendRequest(sessionResourceLocationRequestInfo).then(function (sessionResourceLocationResponseInfo) {
                         _this.formatRequestUrlAndHeaderInfo(sessionResourceLocationResponseInfo);
@@ -24003,14 +24842,29 @@ var Excel;
                 });
             });
         };
+        Session.prototype.refreshSession = function () {
+            var _this = this;
+            if (!this.m_workbookUrl || OfficeExtension.Utility._isLocalDocumentUrl(this.m_workbookUrl)) {
+                throw this.createError(HttpStatusCode.InternalServerError, 'Not supported for local documents.', SessionOperation.Refresh);
+            }
+            if (!this.m_requestUrlAndHeaderInfo) {
+                throw this.createError(HttpStatusCode.InternalServerError, 'Need to call this._resolveRequestUrlAndHeaderInfo() to get the session id first.', SessionOperation.Refresh);
+            }
+            var refreshSessionRequestInfo = this.createRefreshSessionRequestInfo();
+            return OfficeExtension.HttpUtility.sendRequest(refreshSessionRequestInfo).then(function (refreshSessionResponseInfo) {
+                var statusCode = refreshSessionResponseInfo.statusCode;
+                if (statusCode != HttpStatusCode.NoContent) {
+                    throw _this.createErrorFromResponseInfo(refreshSessionResponseInfo, SessionOperation.Refresh);
+                }
+                return OfficeExtension.Utility._createPromiseFromResult(null);
+            });
+        };
         Session.prototype.getHeaderIgnoreCase = function (headers, headerName) {
             var foundHeaders = Object.keys(headers).filter(function (key) { return key.toLowerCase() === headerName.toLowerCase(); });
             return foundHeaders.length > 0 ? headers[foundHeaders[0]] : undefined;
         };
         Session.prototype.createCommitChangesRequestInfo = function (additionalRequestHeaders) {
-            if (additionalRequestHeaders === void 0) {
-                additionalRequestHeaders = {};
-            }
+            if (additionalRequestHeaders === void 0) { additionalRequestHeaders = {}; }
             var url = this.getCorrectGraphVersionUrl() + Session.COMMIT_CHANGES;
             var headers = {};
             OfficeExtension.Utility._copyHeaders(this.m_requestUrlAndHeaderInfo.headers, headers);
@@ -24024,9 +24878,7 @@ var Excel;
             };
         };
         Session.prototype.createAsyncGraphSessionRequestInfo = function (additionalRequestHeaders) {
-            if (additionalRequestHeaders === void 0) {
-                additionalRequestHeaders = {};
-            }
+            if (additionalRequestHeaders === void 0) { additionalRequestHeaders = {}; }
             var url = this.getCorrectGraphVersionUrl() + Session.CREATE_SESSION;
             var headers = {};
             OfficeExtension.Utility._copyHeaders(this.m_requestHeaders, headers);
@@ -24037,7 +24889,19 @@ var Excel;
                 url: url,
                 method: 'POST',
                 headers: headers,
-                body: { persistChanges: this.m_persistChanges, commitExplicitly: this.m_commitExplicitly }
+                body: { persistChanges: this.m_persistChanges, commitExplicitly: this.m_commitExplicitly },
+            };
+        };
+        Session.prototype.createRefreshSessionRequestInfo = function () {
+            var url = this.getCorrectGraphVersionUrl() + Session.REFRESH_SESSION;
+            var headers = {};
+            OfficeExtension.Utility._copyHeaders(this.m_requestUrlAndHeaderInfo.headers, headers);
+            headers[Session.CONTENT_TYPE_HEADER] = Session.CONTENT_TYPE_HEADER_VAL;
+            return {
+                url: url,
+                method: 'POST',
+                headers: headers,
+                body: {},
             };
         };
         Session.prototype.getCorrectGraphVersionUrl = function () {
@@ -24045,12 +24909,8 @@ var Excel;
         };
         Session.prototype.pollResourceLocation = function (resourceLocation, sessionOperation, additionalRequestHeaders, pollAttempt) {
             var _this = this;
-            if (additionalRequestHeaders === void 0) {
-                additionalRequestHeaders = {};
-            }
-            if (pollAttempt === void 0) {
-                pollAttempt = 0;
-            }
+            if (additionalRequestHeaders === void 0) { additionalRequestHeaders = {}; }
+            if (pollAttempt === void 0) { pollAttempt = 0; }
             if (pollAttempt >= Session.MAX_POLL_ATTEMPTS) {
                 throw this.createError(HttpStatusCode.InternalServerError, 'Timout while polling for the resource location.', sessionOperation);
             }
@@ -24058,7 +24918,7 @@ var Excel;
                 method: 'GET',
                 url: resourceLocation,
                 headers: __assign({}, additionalRequestHeaders, { Authorization: this.getHeaderIgnoreCase(this.m_requestHeaders, Session.AUTHORIZATION_HEADER) }),
-                body: undefined
+                body: undefined,
             };
             return OfficeExtension.HttpUtility.sendRequest(operationStatusRequestInfo).then(function (operationStatusResponseInfo) {
                 if (operationStatusResponseInfo.statusCode !== HttpStatusCode.OK) {
@@ -24109,7 +24969,10 @@ var Excel;
         Session.prototype.createErrorFromResponseInfo = function (responseInfo, locationThrown) {
             var err = OfficeExtension.Utility._parseErrorResponse(responseInfo);
             var retryAfter = this.getHeaderIgnoreCase(responseInfo.headers, Session.RETRY_AFTER_HEADER);
-            var data = !retryAfter ? undefined : { retryAfter: retryAfter };
+            var data = {
+                retryAfter: retryAfter,
+                responseBody: OfficeExtension.Utility._parseErrorResponseBody(responseInfo),
+            };
             return OfficeExtension.Utility.createRuntimeError(err.errorCode, err.errorMessage, locationThrown, responseInfo.statusCode, data);
         };
         Session.prototype.createError = function (code, message, locationThrown) {
@@ -24132,6 +24995,7 @@ var Excel;
         Session.CLOSE_SESSION = 'closeSession';
         Session.COMMIT_CHANGES = 'commitChanges';
         Session.CREATE_SESSION = 'createSession';
+        Session.REFRESH_SESSION = 'refreshSession';
         return Session;
     }());
     Excel.Session = Session;
@@ -24148,6 +25012,7 @@ var Excel;
             var ooeInvalidApiCallInContext = 5004;
             if (officeJsErrorCode === ooeInvalidApiCallInContext) {
                 response.ErrorCode = ErrorCodes.invalidOperationInCellEditMode;
+                response.HttpStatusCode = 400;
                 response.ErrorMessage = OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.invalidOperationInCellEditMode);
             }
         };
@@ -24312,7 +25177,7 @@ var Excel;
         },
         "GetFilePropertiesAsync": {
             call: function (ctx) { return ctx.workbook._V1Api.getFilePropertiesAsync(); }
-        }
+        },
     };
     function postprocessBindingDescriptor(response) {
         var bindingDescriptor = {
@@ -24410,6 +25275,665 @@ var Excel;
     var _processRetrieveResult = OfficeExtension.Utility.processRetrieveResult;
     var _setMockData = OfficeExtension.Utility.setMockData;
     var _calculateApiFlags = OfficeExtension.CommonUtility.calculateApiFlags;
+    var LoadToType;
+    (function (LoadToType) {
+        LoadToType["connectionOnly"] = "ConnectionOnly";
+        LoadToType["table"] = "Table";
+        LoadToType["pivotTable"] = "PivotTable";
+        LoadToType["pivotChart"] = "PivotChart";
+    })(LoadToType = Excel.LoadToType || (Excel.LoadToType = {}));
+    var _typeQuery = "Query";
+    var Query = (function (_super) {
+        __extends(Query, _super);
+        function Query() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(Query.prototype, "_className", {
+            get: function () {
+                return "Query";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "_scalarPropertyNames", {
+            get: function () {
+                return ["loadedTo", "loadedToDataModel", "name", "refreshDate", "rowsLoadedCount", "error"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "_scalarPropertyOriginalNames", {
+            get: function () {
+                return ["LoadedTo", "LoadedToDataModel", "Name", "RefreshDate", "RowsLoadedCount", "Error"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "error", {
+            get: function () {
+                _throwIfNotLoaded("error", this._E, _typeQuery, this._isNull);
+                return this._E;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "loadedTo", {
+            get: function () {
+                _throwIfNotLoaded("loadedTo", this._L, _typeQuery, this._isNull);
+                return this._L;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "loadedToDataModel", {
+            get: function () {
+                _throwIfNotLoaded("loadedToDataModel", this._Lo, _typeQuery, this._isNull);
+                return this._Lo;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "name", {
+            get: function () {
+                _throwIfNotLoaded("name", this._N, _typeQuery, this._isNull);
+                return this._N;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "refreshDate", {
+            get: function () {
+                _throwIfNotLoaded("refreshDate", this._R, _typeQuery, this._isNull);
+                return this._R;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Query.prototype, "rowsLoadedCount", {
+            get: function () {
+                _throwIfNotLoaded("rowsLoadedCount", this._Ro, _typeQuery, this._isNull);
+                return this._Ro;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Query.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            if (!_isUndefined(obj["Error"])) {
+                this._E = obj["Error"];
+            }
+            if (!_isUndefined(obj["LoadedTo"])) {
+                this._L = obj["LoadedTo"];
+            }
+            if (!_isUndefined(obj["LoadedToDataModel"])) {
+                this._Lo = obj["LoadedToDataModel"];
+            }
+            if (!_isUndefined(obj["Name"])) {
+                this._N = obj["Name"];
+            }
+            if (!_isUndefined(obj["RefreshDate"])) {
+                this._R = _adjustToDateTime(obj["RefreshDate"]);
+            }
+            if (!_isUndefined(obj["RowsLoadedCount"])) {
+                this._Ro = obj["RowsLoadedCount"];
+            }
+        };
+        Query.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        Query.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        Query.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            if (!_isUndefined(obj["RefreshDate"])) {
+                obj["refreshDate"] = _adjustToDateTime(obj["refreshDate"]);
+            }
+            _processRetrieveResult(this, value, result);
+        };
+        Query.prototype.toJSON = function () {
+            return _toJson(this, {}, {});
+        };
+        Query.prototype.setMockData = function (data) {
+            _setMockData(this, data);
+        };
+        Query.prototype.ensureUnchanged = function (data) {
+            _invokeEnsureUnchanged(this, data);
+            return;
+        };
+        return Query;
+    }(OfficeExtension.ClientObject));
+    Excel.Query = Query;
+    var _typeQueryCollection = "QueryCollection";
+    var QueryCollection = (function (_super) {
+        __extends(QueryCollection, _super);
+        function QueryCollection() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(QueryCollection.prototype, "_className", {
+            get: function () {
+                return "QueryCollection";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(QueryCollection.prototype, "_isCollection", {
+            get: function () {
+                return true;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(QueryCollection.prototype, "items", {
+            get: function () {
+                _throwIfNotLoaded("items", this.m__items, _typeQueryCollection, this._isNull);
+                return this.m__items;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        QueryCollection.prototype.getCount = function () {
+            return _invokeMethod(this, "GetCount", 1, [], 4, 0);
+        };
+        QueryCollection.prototype.getItem = function (key) {
+            return _createIndexerObject(Excel.Query, this, [key]);
+        };
+        QueryCollection.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            if (!_isNullOrUndefined(obj[OfficeExtension.Constants.items])) {
+                this.m__items = [];
+                var _data = obj[OfficeExtension.Constants.items];
+                for (var i = 0; i < _data.length; i++) {
+                    var _item = _createChildItemObject(Excel.Query, true, this, _data[i], i);
+                    _item._handleResult(_data[i]);
+                    this.m__items.push(_item);
+                }
+            }
+        };
+        QueryCollection.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        QueryCollection.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        QueryCollection.prototype._handleRetrieveResult = function (value, result) {
+            var _this = this;
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result, function (childItemData, index) { return _createChildItemObject(Excel.Query, true, _this, childItemData, index); });
+        };
+        QueryCollection.prototype.toJSON = function () {
+            return _toJson(this, {}, {}, this.m__items);
+        };
+        QueryCollection.prototype.setMockData = function (data) {
+            var _this = this;
+            _setMockData(this, data, function (childItemData, index) { return _createChildItemObject(Excel.Query, true, _this, childItemData, index); }, function (items) { return _this.m__items = items; });
+        };
+        return QueryCollection;
+    }(OfficeExtension.ClientObject));
+    Excel.QueryCollection = QueryCollection;
+    var QueryError;
+    (function (QueryError) {
+        QueryError["unknown"] = "Unknown";
+        QueryError["none"] = "None";
+        QueryError["failedLoadToWorksheet"] = "FailedLoadToWorksheet";
+        QueryError["failedLoadToDataModel"] = "FailedLoadToDataModel";
+        QueryError["failedDownload"] = "FailedDownload";
+        QueryError["failedToCompleteDownload"] = "FailedToCompleteDownload";
+    })(QueryError = Excel.QueryError || (Excel.QueryError = {}));
+    var _typeNumberFormatProperty = "NumberFormatProperty";
+    var NumberFormatProperty = (function (_super) {
+        __extends(NumberFormatProperty, _super);
+        function NumberFormatProperty() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(NumberFormatProperty.prototype, "_className", {
+            get: function () {
+                return "NumberFormatProperty";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "_scalarPropertyNames", {
+            get: function () {
+                return ["key", "currency", "dateTime", "dateTimeHasDayOfWeek", "dateTimeHasMonth", "dateTimeHasYear", "numeric", "percent", "text"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "_scalarPropertyOriginalNames", {
+            get: function () {
+                return ["Key", "Currency", "DateTime", "DateTimeHasDayOfWeek", "DateTimeHasMonth", "DateTimeHasYear", "Numeric", "Percent", "Text"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "currency", {
+            get: function () {
+                _throwIfNotLoaded("currency", this._C, _typeNumberFormatProperty, this._isNull);
+                return this._C;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "dateTime", {
+            get: function () {
+                _throwIfNotLoaded("dateTime", this._D, _typeNumberFormatProperty, this._isNull);
+                return this._D;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "dateTimeHasDayOfWeek", {
+            get: function () {
+                _throwIfNotLoaded("dateTimeHasDayOfWeek", this._Da, _typeNumberFormatProperty, this._isNull);
+                return this._Da;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "dateTimeHasMonth", {
+            get: function () {
+                _throwIfNotLoaded("dateTimeHasMonth", this._Dat, _typeNumberFormatProperty, this._isNull);
+                return this._Dat;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "dateTimeHasYear", {
+            get: function () {
+                _throwIfNotLoaded("dateTimeHasYear", this._Date, _typeNumberFormatProperty, this._isNull);
+                return this._Date;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "key", {
+            get: function () {
+                _throwIfNotLoaded("key", this._K, _typeNumberFormatProperty, this._isNull);
+                return this._K;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "numeric", {
+            get: function () {
+                _throwIfNotLoaded("numeric", this._N, _typeNumberFormatProperty, this._isNull);
+                return this._N;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "percent", {
+            get: function () {
+                _throwIfNotLoaded("percent", this._P, _typeNumberFormatProperty, this._isNull);
+                return this._P;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatProperty.prototype, "text", {
+            get: function () {
+                _throwIfNotLoaded("text", this._T, _typeNumberFormatProperty, this._isNull);
+                return this._T;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        NumberFormatProperty.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            if (!_isUndefined(obj["Currency"])) {
+                this._C = obj["Currency"];
+            }
+            if (!_isUndefined(obj["DateTime"])) {
+                this._D = obj["DateTime"];
+            }
+            if (!_isUndefined(obj["DateTimeHasDayOfWeek"])) {
+                this._Da = obj["DateTimeHasDayOfWeek"];
+            }
+            if (!_isUndefined(obj["DateTimeHasMonth"])) {
+                this._Dat = obj["DateTimeHasMonth"];
+            }
+            if (!_isUndefined(obj["DateTimeHasYear"])) {
+                this._Date = obj["DateTimeHasYear"];
+            }
+            if (!_isUndefined(obj["Key"])) {
+                this._K = obj["Key"];
+            }
+            if (!_isUndefined(obj["Numeric"])) {
+                this._N = obj["Numeric"];
+            }
+            if (!_isUndefined(obj["Percent"])) {
+                this._P = obj["Percent"];
+            }
+            if (!_isUndefined(obj["Text"])) {
+                this._T = obj["Text"];
+            }
+        };
+        NumberFormatProperty.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        NumberFormatProperty.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        NumberFormatProperty.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        NumberFormatProperty.prototype.toJSON = function () {
+            return _toJson(this, {
+                "currency": this._C,
+                "dateTime": this._D,
+                "dateTimeHasDayOfWeek": this._Da,
+                "dateTimeHasMonth": this._Dat,
+                "dateTimeHasYear": this._Date,
+                "key": this._K,
+                "numeric": this._N,
+                "percent": this._P,
+                "text": this._T,
+            }, {});
+        };
+        NumberFormatProperty.prototype.setMockData = function (data) {
+            _setMockData(this, data);
+        };
+        NumberFormatProperty.prototype.ensureUnchanged = function (data) {
+            _invokeEnsureUnchanged(this, data);
+            return;
+        };
+        return NumberFormatProperty;
+    }(OfficeExtension.ClientObject));
+    Excel.NumberFormatProperty = NumberFormatProperty;
+    var _typeNumberFormatPropertyCollection = "NumberFormatPropertyCollection";
+    var NumberFormatPropertyCollection = (function (_super) {
+        __extends(NumberFormatPropertyCollection, _super);
+        function NumberFormatPropertyCollection() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(NumberFormatPropertyCollection.prototype, "_className", {
+            get: function () {
+                return "NumberFormatPropertyCollection";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatPropertyCollection.prototype, "_isCollection", {
+            get: function () {
+                return true;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NumberFormatPropertyCollection.prototype, "items", {
+            get: function () {
+                _throwIfNotLoaded("items", this.m__items, _typeNumberFormatPropertyCollection, this._isNull);
+                return this.m__items;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        NumberFormatPropertyCollection.prototype.getItemAt = function (index) {
+            return _createMethodObject(Excel.NumberFormatProperty, this, "GetItemAt", 1, [index], false, false, null, 4);
+        };
+        NumberFormatPropertyCollection.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            if (!_isNullOrUndefined(obj[OfficeExtension.Constants.items])) {
+                this.m__items = [];
+                var _data = obj[OfficeExtension.Constants.items];
+                for (var i = 0; i < _data.length; i++) {
+                    var _item = _createChildItemObject(Excel.NumberFormatProperty, false, this, _data[i], i);
+                    _item._handleResult(_data[i]);
+                    this.m__items.push(_item);
+                }
+            }
+        };
+        NumberFormatPropertyCollection.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        NumberFormatPropertyCollection.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        NumberFormatPropertyCollection.prototype._handleRetrieveResult = function (value, result) {
+            var _this = this;
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result, function (childItemData, index) { return _createChildItemObject(Excel.NumberFormatProperty, false, _this, childItemData, index); });
+        };
+        NumberFormatPropertyCollection.prototype.toJSON = function () {
+            return _toJson(this, {}, {}, this.m__items);
+        };
+        NumberFormatPropertyCollection.prototype.setMockData = function (data) {
+            var _this = this;
+            _setMockData(this, data, function (childItemData, index) { return _createChildItemObject(Excel.NumberFormatProperty, false, _this, childItemData, index); }, function (items) { return _this.m__items = items; });
+        };
+        return NumberFormatPropertyCollection;
+    }(OfficeExtension.ClientObject));
+    Excel.NumberFormatPropertyCollection = NumberFormatPropertyCollection;
+    var _typeLinkedWorkbook = "LinkedWorkbook";
+    var LinkedWorkbook = (function (_super) {
+        __extends(LinkedWorkbook, _super);
+        function LinkedWorkbook() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(LinkedWorkbook.prototype, "_className", {
+            get: function () {
+                return "LinkedWorkbook";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbook.prototype, "_scalarPropertyNames", {
+            get: function () {
+                return ["id"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbook.prototype, "_scalarPropertyOriginalNames", {
+            get: function () {
+                return ["Id"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbook.prototype, "id", {
+            get: function () {
+                _throwIfNotLoaded("id", this._I, _typeLinkedWorkbook, this._isNull);
+                return this._I;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        LinkedWorkbook.prototype.breakLinks = function () {
+            _invokeMethod(this, "BreakLinks", 0, [], 0, 0);
+        };
+        LinkedWorkbook.prototype.refresh = function () {
+            _invokeMethod(this, "Refresh", 0, [], 0, 0);
+        };
+        LinkedWorkbook.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            if (!_isUndefined(obj["Id"])) {
+                this._I = obj["Id"];
+            }
+        };
+        LinkedWorkbook.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        LinkedWorkbook.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        LinkedWorkbook.prototype._handleIdResult = function (value) {
+            _super.prototype._handleIdResult.call(this, value);
+            if (_isNullOrUndefined(value)) {
+                return;
+            }
+            if (!_isUndefined(value["Id"])) {
+                this._I = value["Id"];
+            }
+        };
+        LinkedWorkbook.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        LinkedWorkbook.prototype.toJSON = function () {
+            return _toJson(this, {}, {});
+        };
+        LinkedWorkbook.prototype.setMockData = function (data) {
+            _setMockData(this, data);
+        };
+        LinkedWorkbook.prototype.ensureUnchanged = function (data) {
+            _invokeEnsureUnchanged(this, data);
+            return;
+        };
+        return LinkedWorkbook;
+    }(OfficeExtension.ClientObject));
+    Excel.LinkedWorkbook = LinkedWorkbook;
+    var _typeLinkedWorkbookCollection = "LinkedWorkbookCollection";
+    var LinkedWorkbookCollection = (function (_super) {
+        __extends(LinkedWorkbookCollection, _super);
+        function LinkedWorkbookCollection() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(LinkedWorkbookCollection.prototype, "_className", {
+            get: function () {
+                return "LinkedWorkbookCollection";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbookCollection.prototype, "_isCollection", {
+            get: function () {
+                return true;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbookCollection.prototype, "_scalarPropertyNames", {
+            get: function () {
+                return ["workbookLinksRefreshMode"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbookCollection.prototype, "_scalarPropertyOriginalNames", {
+            get: function () {
+                return ["WorkbookLinksRefreshMode"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbookCollection.prototype, "_scalarPropertyUpdateable", {
+            get: function () {
+                return [true];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbookCollection.prototype, "items", {
+            get: function () {
+                _throwIfNotLoaded("items", this.m__items, _typeLinkedWorkbookCollection, this._isNull);
+                return this.m__items;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(LinkedWorkbookCollection.prototype, "workbookLinksRefreshMode", {
+            get: function () {
+                _throwIfNotLoaded("workbookLinksRefreshMode", this._W, _typeLinkedWorkbookCollection, this._isNull);
+                return this._W;
+            },
+            set: function (value) {
+                this._W = value;
+                _invokeSetProperty(this, "WorkbookLinksRefreshMode", value, 0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        LinkedWorkbookCollection.prototype.breakAllLinks = function () {
+            _invokeMethod(this, "BreakAllLinks", 0, [], 0, 0);
+        };
+        LinkedWorkbookCollection.prototype.getItem = function (key) {
+            return _createIndexerObject(Excel.LinkedWorkbook, this, [key]);
+        };
+        LinkedWorkbookCollection.prototype.getItemOrNullObject = function (key) {
+            return _createMethodObject(Excel.LinkedWorkbook, this, "GetItemOrNullObject", 0, [key], false, false, null, 0);
+        };
+        LinkedWorkbookCollection.prototype.refreshAll = function () {
+            _invokeMethod(this, "RefreshAll", 0, [], 0, 0);
+        };
+        LinkedWorkbookCollection.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            if (!_isUndefined(obj["WorkbookLinksRefreshMode"])) {
+                this._W = obj["WorkbookLinksRefreshMode"];
+            }
+            if (!_isNullOrUndefined(obj[OfficeExtension.Constants.items])) {
+                this.m__items = [];
+                var _data = obj[OfficeExtension.Constants.items];
+                for (var i = 0; i < _data.length; i++) {
+                    var _item = _createChildItemObject(Excel.LinkedWorkbook, true, this, _data[i], i);
+                    _item._handleResult(_data[i]);
+                    this.m__items.push(_item);
+                }
+            }
+        };
+        LinkedWorkbookCollection.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        LinkedWorkbookCollection.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        LinkedWorkbookCollection.prototype._handleRetrieveResult = function (value, result) {
+            var _this = this;
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result, function (childItemData, index) { return _createChildItemObject(Excel.LinkedWorkbook, true, _this, childItemData, index); });
+        };
+        LinkedWorkbookCollection.prototype.toJSON = function () {
+            return _toJson(this, {}, {}, this.m__items);
+        };
+        LinkedWorkbookCollection.prototype.setMockData = function (data) {
+            var _this = this;
+            _setMockData(this, data, function (childItemData, index) { return _createChildItemObject(Excel.LinkedWorkbook, true, _this, childItemData, index); }, function (items) { return _this.m__items = items; });
+        };
+        return LinkedWorkbookCollection;
+    }(OfficeExtension.ClientObject));
+    Excel.LinkedWorkbookCollection = LinkedWorkbookCollection;
+    var WorkbookLinksRefreshMode;
+    (function (WorkbookLinksRefreshMode) {
+        WorkbookLinksRefreshMode["manual"] = "Manual";
+        WorkbookLinksRefreshMode["automatic"] = "Automatic";
+    })(WorkbookLinksRefreshMode = Excel.WorkbookLinksRefreshMode || (Excel.WorkbookLinksRefreshMode = {}));
+    var DataSourceType;
+    (function (DataSourceType) {
+        DataSourceType["unknown"] = "Unknown";
+        DataSourceType["cube"] = "Cube";
+        DataSourceType["localRange"] = "LocalRange";
+        DataSourceType["localTable"] = "LocalTable";
+        DataSourceType["oledbDefault"] = "OledbDefault";
+    })(DataSourceType = Excel.DataSourceType || (Excel.DataSourceType = {}));
     var DateFilterCondition;
     (function (DateFilterCondition) {
         DateFilterCondition["unknown"] = "Unknown";
@@ -24574,7 +26098,7 @@ var Excel;
         };
         Runtime.prototype.toJSON = function () {
             return _toJson(this, {
-                "enableEvents": this._E
+                "enableEvents": this._E,
             }, {});
         };
         Runtime.prototype.setMockData = function (data) {
@@ -24739,11 +26263,11 @@ var Excel;
                 return;
             }
             _throwIfApiNotSupported("Application.suspendApiCalculationUntilNextSync", _defaultApiSetName, "1.6", _hostName);
-            _invokeMethod(this, "SuspendApiCalculationUntilNextSync", 0, [], 0, 0);
+            _invokeMethod(this, "SuspendApiCalculationUntilNextSync", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.6"), 0);
         };
         Application.prototype.suspendScreenUpdatingUntilNextSync = function () {
             _throwIfApiNotSupported("Application.suspendScreenUpdatingUntilNextSync", _defaultApiSetName, "1.9", _hostName);
-            _invokeMethod(this, "SuspendScreenUpdatingUntilNextSync", 0, [], 0, 0);
+            _invokeMethod(this, "SuspendScreenUpdatingUntilNextSync", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.6"), 0);
         };
         Application.prototype._GetWorkbookCreatedById = function (id) {
             _throwIfApiNotSupported("Application._GetWorkbookCreatedById", _defaultApiSetName, "1.8", _hostName);
@@ -24792,11 +26316,11 @@ var Excel;
                 "calculationState": this._Cal,
                 "decimalSeparator": this._D,
                 "thousandsSeparator": this._T,
-                "useSystemSeparators": this._U
+                "useSystemSeparators": this._U,
             }, {
                 "cultureInfo": this._Cu,
                 "iterativeCalculation": this._I,
-                "ribbon": this._R
+                "ribbon": this._R,
             });
         };
         Application.prototype.setMockData = function (data) {
@@ -24924,7 +26448,7 @@ var Excel;
             return _toJson(this, {
                 "enabled": this._E,
                 "maxChange": this._M,
-                "maxIteration": this._Ma
+                "maxIteration": this._Ma,
             }, {});
         };
         IterativeCalculation.prototype.setMockData = function (data) {
@@ -24973,7 +26497,7 @@ var Excel;
         });
         Object.defineProperty(Workbook.prototype, "_navigationPropertyNames", {
             get: function () {
-                return ["worksheets", "names", "tables", "application", "bindings", "functions", "_V1Api", "pivotTables", "settings", "customXmlParts", "internalTest", "properties", "styles", "protection", "dataConnections", "_Runtime", "comments", "slicers", "tableStyles", "pivotTableStyles", "slicerStyles", "timelineStyles"];
+                return ["worksheets", "names", "tables", "application", "bindings", "functions", "_V1Api", "pivotTables", "settings", "customXmlParts", "internalTest", "properties", "styles", "protection", "dataConnections", "_Runtime", "comments", "slicers", "tableStyles", "pivotTableStyles", "slicerStyles", "timelineStyles", "queries", "linkedWorkbooks"];
             },
             enumerable: true,
             configurable: true
@@ -25053,6 +26577,17 @@ var Excel;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Workbook.prototype, "linkedWorkbooks", {
+            get: function () {
+                _throwIfApiNotSupported("Workbook.linkedWorkbooks", "ExcelApiOnline", "1.1", _hostName);
+                if (!this._L) {
+                    this._L = _createPropertyObject(Excel.LinkedWorkbookCollection, this, "LinkedWorkbooks", true, 4);
+                }
+                return this._L;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Workbook.prototype, "names", {
             get: function () {
                 if (!this._Na) {
@@ -25103,6 +26638,17 @@ var Excel;
                     this._Prot = _createPropertyObject(Excel.WorkbookProtection, this, "Protection", false, 4);
                 }
                 return this._Prot;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Workbook.prototype, "queries", {
+            get: function () {
+                _throwIfApiNotSupported("Workbook.queries", _defaultApiSetName, "1.14", _hostName);
+                if (!this._Q) {
+                    this._Q = _createPropertyObject(Excel.QueryCollection, this, "Queries", true, 4);
+                }
+                return this._Q;
             },
             enumerable: true,
             configurable: true
@@ -25310,10 +26856,12 @@ var Excel;
                 "dataConnections",
                 "functions",
                 "internalTest",
+                "linkedWorkbooks",
                 "names",
                 "pivotTables",
                 "pivotTableStyles",
                 "protection",
+                "queries",
                 "settings",
                 "slicers",
                 "slicerStyles",
@@ -25370,6 +26918,17 @@ var Excel;
             _throwIfApiNotSupported("Workbook.getSelectedRanges", _defaultApiSetName, "1.9", _hostName);
             return _createMethodObject(Excel.RangeAreas, this, "GetSelectedRanges", 1, [], false, true, null, 4);
         };
+        Workbook.prototype.insertWorksheetsFromBase64 = function (base64File, options) {
+            _throwIfApiNotSupported("Workbook.insertWorksheetsFromBase64", _defaultApiSetName, "1.13", _hostName);
+            return _invokeMethod(this, "InsertWorksheetsFromBase64", 0, [base64File, options], 0, 0);
+        };
+        Workbook.prototype.recordAction = function (payload) {
+            var handled = _CC.Workbook_RecordAction(this, payload).handled;
+            if (handled) {
+                return;
+            }
+            _invokeMethod(this, "RecordAction", 1, [payload], 4, 0);
+        };
         Workbook.prototype.registerCustomFunctions = function (addinNamespace, metadataContent, addinId, locale, addinInvariantNamespace, addinTitle, isXllCompatible) {
             _throwIfApiNotSupported("Workbook.registerCustomFunctions", "CustomFunctions", "1.1", _hostName);
             _invokeMethod(this, "RegisterCustomFunctions", 0, [addinNamespace, metadataContent, addinId, locale, addinInvariantNamespace, addinTitle, isXllCompatible], 8, 0);
@@ -25401,6 +26960,10 @@ var Excel;
         Workbook.prototype._GetReferenceCount = function () {
             return _invokeMethod(this, "_GetReferenceCount", 1, [], 4, 0);
         };
+        Workbook.prototype._RegisterActivatedEvent = function () {
+            _throwIfApiNotSupported("Workbook._RegisterActivatedEvent", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "_RegisterActivatedEvent", 1, [], 0, 0);
+        };
         Workbook.prototype._RegisterAutoSaveSettingChangedEvent = function () {
             _throwIfApiNotSupported("Workbook._RegisterAutoSaveSettingChangedEvent", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "_RegisterAutoSaveSettingChangedEvent", 0, [], 0, 0);
@@ -25414,6 +26977,10 @@ var Excel;
         Workbook.prototype._SetOsfControlContainerReadyForCustomFunctions = function () {
             _throwIfApiNotSupported("Workbook._SetOsfControlContainerReadyForCustomFunctions", "CustomFunctions", "1.1", _hostName);
             _invokeMethod(this, "_SetOsfControlContainerReadyForCustomFunctions", 0, [], 0, 0);
+        };
+        Workbook.prototype._UnregisterActivatedEvent = function () {
+            _throwIfApiNotSupported("Workbook._UnregisterActivatedEvent", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "_UnregisterActivatedEvent", 1, [], 0, 0);
         };
         Workbook.prototype._UnregisterAutoSaveSettingChangedEvent = function () {
             _throwIfApiNotSupported("Workbook._UnregisterAutoSaveSettingChangedEvent", _defaultApiSetName, "1.9", _hostName);
@@ -25449,7 +27016,7 @@ var Excel;
             if (!_isUndefined(obj["UsePrecisionAsDisplayed"])) {
                 this._U = obj["UsePrecisionAsDisplayed"];
             }
-            _handleNavigationPropertyResults(this, obj, ["application", "Application", "bindings", "Bindings", "comments", "Comments", "customXmlParts", "CustomXmlParts", "dataConnections", "DataConnections", "functions", "Functions", "internalTest", "InternalTest", "names", "Names", "pivotTableStyles", "PivotTableStyles", "pivotTables", "PivotTables", "properties", "Properties", "protection", "Protection", "settings", "Settings", "slicerStyles", "SlicerStyles", "slicers", "Slicers", "styles", "Styles", "tableStyles", "TableStyles", "tables", "Tables", "timelineStyles", "TimelineStyles", "worksheets", "Worksheets", "_Runtime", "_Runtime", "_V1Api", "_V1Api"]);
+            _handleNavigationPropertyResults(this, obj, ["application", "Application", "bindings", "Bindings", "comments", "Comments", "customXmlParts", "CustomXmlParts", "dataConnections", "DataConnections", "functions", "Functions", "internalTest", "InternalTest", "linkedWorkbooks", "LinkedWorkbooks", "names", "Names", "pivotTableStyles", "PivotTableStyles", "pivotTables", "PivotTables", "properties", "Properties", "protection", "Protection", "queries", "Queries", "settings", "Settings", "slicerStyles", "SlicerStyles", "slicers", "Slicers", "styles", "Styles", "tableStyles", "TableStyles", "tables", "Tables", "timelineStyles", "TimelineStyles", "worksheets", "Worksheets", "_Runtime", "_Runtime", "_V1Api", "_V1Api"]);
         };
         Workbook.prototype.load = function (options) {
             return _load(this, options);
@@ -25461,6 +27028,29 @@ var Excel;
             _super.prototype._handleRetrieveResult.call(this, value, result);
             _processRetrieveResult(this, value, result);
         };
+        Object.defineProperty(Workbook.prototype, "onActivated", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("Workbook.onActivated", _defaultApiSetName, "1.13", _hostName);
+                if (!this.m_activated) {
+                    this.m_activated = new OfficeExtension.GenericEventHandlers(this.context, this, "Activated", {
+                        eventType: 2203,
+                        registerFunc: function () { return _this._RegisterActivatedEvent(); },
+                        unregisterFunc: function () { return _this._UnregisterActivatedEvent(); },
+                        getTargetIdFunc: function () { return OfficeExtension.Constants.eventWorkbookId; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.workbookActivated
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_activated;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Workbook.prototype, "onAutoSaveSettingChanged", {
             get: function () {
                 var _this = this;
@@ -25539,7 +27129,7 @@ var Excel;
                 "name": this._N,
                 "previouslySaved": this._Pr,
                 "readOnly": this._R,
-                "usePrecisionAsDisplayed": this._U
+                "usePrecisionAsDisplayed": this._U,
             }, {
                 "bindings": this._B,
                 "comments": this._Co,
@@ -25556,7 +27146,7 @@ var Excel;
                 "tables": this._T,
                 "tableStyles": this._Ta,
                 "timelineStyles": this._Ti,
-                "worksheets": this._W
+                "worksheets": this._W,
             });
         };
         Workbook.prototype.setMockData = function (data) {
@@ -25575,6 +27165,11 @@ var Excel;
             return { handled: false };
         }
         _CC.Workbook_EnableOfficeScriptRecording = Workbook_EnableOfficeScriptRecording;
+        function Workbook_RecordAction(thisObj, payload) {
+            this.context.sdxPayload = payload;
+            return { handled: false };
+        }
+        _CC.Workbook_RecordAction = Workbook_RecordAction;
         function Workbook_SelectionChanged_EventArgsTransform(thisObj, args) {
             return { workbook: thisObj };
         }
@@ -25650,7 +27245,7 @@ var Excel;
         };
         WorkbookProtection.prototype.toJSON = function () {
             return _toJson(this, {
-                "protected": this._P
+                "protected": this._P,
             }, {});
         };
         WorkbookProtection.prototype.setMockData = function (data) {
@@ -25732,7 +27327,7 @@ var Excel;
         };
         WorkbookCreated.prototype.toJSON = function () {
             return _toJson(this, {
-                "id": this._I
+                "id": this._I,
             }, {});
         };
         return WorkbookCreated;
@@ -25760,21 +27355,21 @@ var Excel;
         });
         Object.defineProperty(Worksheet.prototype, "_scalarPropertyNames", {
             get: function () {
-                return ["name", "id", "position", "visibility", "tabColor", "standardWidth", "standardHeight", "showGridlines", "showHeadings", "enableCalculation"];
+                return ["name", "id", "position", "visibility", "tabColor", "standardWidth", "standardHeight", "showGridlines", "showHeadings", "enableCalculation", "tabId"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(Worksheet.prototype, "_scalarPropertyOriginalNames", {
             get: function () {
-                return ["Name", "Id", "Position", "Visibility", "TabColor", "StandardWidth", "StandardHeight", "ShowGridlines", "ShowHeadings", "EnableCalculation"];
+                return ["Name", "Id", "Position", "Visibility", "TabColor", "StandardWidth", "StandardHeight", "ShowGridlines", "ShowHeadings", "EnableCalculation", "TabId"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(Worksheet.prototype, "_scalarPropertyUpdateable", {
             get: function () {
-                return [true, false, true, true, true, true, false, true, true, true];
+                return [true, false, true, true, true, true, false, true, true, true, false];
             },
             enumerable: true,
             configurable: true
@@ -25867,10 +27462,11 @@ var Excel;
         Object.defineProperty(Worksheet.prototype, "names", {
             get: function () {
                 _throwIfApiNotSupported("Worksheet.names", _defaultApiSetName, "1.4", _hostName);
-                if (!this._Nam) {
-                    this._Nam = _createPropertyObject(Excel.NamedItemCollection, this, "Names", true, 4);
+                if (!this.m_names) {
+                    this.m_names = _createPropertyObject(Excel.NamedItemCollection, this, "Names", true, 4);
                 }
-                return this._Nam;
+                _CC.Worksheet_Names_Get(this, this.m_names);
+                return this.m_names;
             },
             enumerable: true,
             configurable: true
@@ -25889,10 +27485,11 @@ var Excel;
         Object.defineProperty(Worksheet.prototype, "pivotTables", {
             get: function () {
                 _throwIfApiNotSupported("Worksheet.pivotTables", _defaultApiSetName, "1.3", _hostName);
-                if (!this._Pi) {
-                    this._Pi = _createPropertyObject(Excel.PivotTableCollection, this, "PivotTables", true, 4);
+                if (!this.m_pivotTables) {
+                    this.m_pivotTables = _createPropertyObject(Excel.PivotTableCollection, this, "PivotTables", true, 4);
                 }
-                return this._Pi;
+                _CC.Worksheet_PivotTables_Get(this, this.m_pivotTables);
+                return this.m_pivotTables;
             },
             enumerable: true,
             configurable: true
@@ -25911,10 +27508,11 @@ var Excel;
         Object.defineProperty(Worksheet.prototype, "shapes", {
             get: function () {
                 _throwIfApiNotSupported("Worksheet.shapes", _defaultApiSetName, "1.9", _hostName);
-                if (!this._S) {
-                    this._S = _createPropertyObject(Excel.ShapeCollection, this, "Shapes", true, 4);
+                if (!this.m_shapes) {
+                    this.m_shapes = _createPropertyObject(Excel.ShapeCollection, this, "Shapes", true, 4);
                 }
-                return this._S;
+                _CC.Worksheet_Shapes_Get(this, this.m_shapes);
+                return this.m_shapes;
             },
             enumerable: true,
             configurable: true
@@ -25922,10 +27520,10 @@ var Excel;
         Object.defineProperty(Worksheet.prototype, "slicers", {
             get: function () {
                 _throwIfApiNotSupported("Worksheet.slicers", _defaultApiSetName, "1.10", _hostName);
-                if (!this._Sl) {
-                    this._Sl = _createPropertyObject(Excel.SlicerCollection, this, "Slicers", true, 4);
+                if (!this._S) {
+                    this._S = _createPropertyObject(Excel.SlicerCollection, this, "Slicers", true, 4);
                 }
-                return this._Sl;
+                return this._S;
             },
             enumerable: true,
             configurable: true
@@ -26073,7 +27671,16 @@ var Excel;
             },
             set: function (value) {
                 this._T = value;
-                _invokeSetProperty(this, "TabColor", value, 0);
+                _invokeSetProperty(this, "TabColor", value, _calculateApiFlags(2, "ExcelApiUndo", "1.8"));
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Worksheet.prototype, "tabId", {
+            get: function () {
+                _throwIfNotLoaded("tabId", this._Ta, _typeWorksheet, this._isNull);
+                _throwIfApiNotSupported("Worksheet.tabId", _defaultApiSetName, "1.14", _hostName);
+                return this._Ta;
             },
             enumerable: true,
             configurable: true
@@ -26123,7 +27730,7 @@ var Excel;
             _throwIfApiNotSupported("Worksheet.copy", _defaultApiSetName, "1.7", _hostName);
             return _createMethodObject(Excel.Worksheet, this, "Copy", 0, [positionType, relativeTo], false, false, "_GetAnotherWorksheetById", 0);
         };
-        Worksheet.prototype["delete"] = function () {
+        Worksheet.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Worksheet.prototype.findAll = function (text, criteria) {
@@ -26201,15 +27808,31 @@ var Excel;
         };
         Worksheet.prototype._RegisterDataChangedEvent = function () {
             _throwIfApiNotSupported("Worksheet._RegisterDataChangedEvent", _defaultApiSetName, "1.7", _hostName);
-            _invokeMethod(this, "_RegisterDataChangedEvent", 0, [], 0, 0);
+            _invokeMethod(this, "_RegisterDataChangedEvent", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.6"), 0);
         };
         Worksheet.prototype._RegisterDeactivatedEvent = function () {
             _throwIfApiNotSupported("Worksheet._RegisterDeactivatedEvent", _defaultApiSetName, "1.7", _hostName);
             _invokeMethod(this, "_RegisterDeactivatedEvent", 0, [], 0, 0);
         };
+        Worksheet.prototype._RegisterEventNameChanged = function () {
+            _throwIfApiNotSupported("Worksheet._RegisterEventNameChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_RegisterEventNameChanged", 0, [], 0, 0);
+        };
+        Worksheet.prototype._RegisterEventVisibilityChanged = function () {
+            _throwIfApiNotSupported("Worksheet._RegisterEventVisibilityChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_RegisterEventVisibilityChanged", 0, [], 0, 0);
+        };
         Worksheet.prototype._RegisterFormatChangedEvent = function () {
             _throwIfApiNotSupported("Worksheet._RegisterFormatChangedEvent", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "_RegisterFormatChangedEvent", 0, [], 0, 0);
+        };
+        Worksheet.prototype._RegisterFormulaChangedEvent = function () {
+            _throwIfApiNotSupported("Worksheet._RegisterFormulaChangedEvent", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "_RegisterFormulaChangedEvent", 1, [], 0, 0);
+        };
+        Worksheet.prototype._RegisterProtectionChangedEvent = function () {
+            _throwIfApiNotSupported("Worksheet._RegisterProtectionChangedEvent", _defaultApiSetName, "1.14", _hostName);
+            _invokeMethod(this, "_RegisterProtectionChangedEvent", 1, [], 0, 0);
         };
         Worksheet.prototype._RegisterRowHiddenChangedEvent = function () {
             _throwIfApiNotSupported("Worksheet._RegisterRowHiddenChangedEvent", _defaultApiSetName, "1.11", _hostName);
@@ -26241,15 +27864,31 @@ var Excel;
         };
         Worksheet.prototype._UnregisterDataChangedEvent = function () {
             _throwIfApiNotSupported("Worksheet._UnregisterDataChangedEvent", _defaultApiSetName, "1.7", _hostName);
-            _invokeMethod(this, "_UnregisterDataChangedEvent", 0, [], 0, 0);
+            _invokeMethod(this, "_UnregisterDataChangedEvent", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.6"), 0);
         };
         Worksheet.prototype._UnregisterDeactivatedEvent = function () {
             _throwIfApiNotSupported("Worksheet._UnregisterDeactivatedEvent", _defaultApiSetName, "1.7", _hostName);
             _invokeMethod(this, "_UnregisterDeactivatedEvent", 0, [], 0, 0);
         };
+        Worksheet.prototype._UnregisterEventNameChanged = function () {
+            _throwIfApiNotSupported("Worksheet._UnregisterEventNameChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_UnregisterEventNameChanged", 0, [], 0, 0);
+        };
+        Worksheet.prototype._UnregisterEventVisibilityChanged = function () {
+            _throwIfApiNotSupported("Worksheet._UnregisterEventVisibilityChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_UnregisterEventVisibilityChanged", 0, [], 0, 0);
+        };
         Worksheet.prototype._UnregisterFormatChangedEvent = function () {
             _throwIfApiNotSupported("Worksheet._UnregisterFormatChangedEvent", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "_UnregisterFormatChangedEvent", 0, [], 0, 0);
+        };
+        Worksheet.prototype._UnregisterFormulaChangedEvent = function () {
+            _throwIfApiNotSupported("Worksheet._UnregisterFormulaChangedEvent", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "_UnregisterFormulaChangedEvent", 1, [], 0, 0);
+        };
+        Worksheet.prototype._UnregisterProtectionChangedEvent = function () {
+            _throwIfApiNotSupported("Worksheet._UnregisterProtectionChangedEvent", _defaultApiSetName, "1.14", _hostName);
+            _invokeMethod(this, "_UnregisterProtectionChangedEvent", 1, [], 0, 0);
         };
         Worksheet.prototype._UnregisterRowHiddenChangedEvent = function () {
             _throwIfApiNotSupported("Worksheet._UnregisterRowHiddenChangedEvent", _defaultApiSetName, "1.11", _hostName);
@@ -26299,6 +27938,9 @@ var Excel;
             }
             if (!_isUndefined(obj["TabColor"])) {
                 this._T = obj["TabColor"];
+            }
+            if (!_isUndefined(obj["TabId"])) {
+                this._Ta = obj["TabId"];
             }
             if (!_isUndefined(obj["Visibility"])) {
                 this._Vi = obj["Visibility"];
@@ -26465,6 +28107,80 @@ var Excel;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Worksheet.prototype, "onFormulaChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("Worksheet.onFormulaChanged", _defaultApiSetName, "1.13", _hostName);
+                if (!this.m_formulaChanged) {
+                    this.m_formulaChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "FormulaChanged", {
+                        eventType: 23,
+                        registerFunc: function () { return _this._RegisterFormulaChangedEvent(); },
+                        unregisterFunc: function () { return _this._UnregisterFormulaChangedEvent(); },
+                        getTargetIdFunc: function () { return _this.id; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = _CC.Worksheet_FormulaChanged_EventArgsTransform(_this, value);
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_formulaChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Worksheet.prototype, "onNameChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("Worksheet.onNameChanged", "ExcelApiOnline", "1.1", _hostName);
+                if (!this.m_nameChanged) {
+                    this.m_nameChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "NameChanged", {
+                        eventType: 25,
+                        registerFunc: function () { return _this._RegisterEventNameChanged(); },
+                        unregisterFunc: function () { return _this._UnregisterEventNameChanged(); },
+                        getTargetIdFunc: function () { return _this.id; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.worksheetNameChanged,
+                                nameAfter: value.nameAfter,
+                                nameBefore: value.nameBefore,
+                                source: value.source,
+                                worksheetId: value.worksheetId
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_nameChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Worksheet.prototype, "onProtectionChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("Worksheet.onProtectionChanged", _defaultApiSetName, "1.14", _hostName);
+                if (!this.m_protectionChanged) {
+                    this.m_protectionChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "ProtectionChanged", {
+                        eventType: 24,
+                        registerFunc: function () { return _this._RegisterProtectionChangedEvent(); },
+                        unregisterFunc: function () { return _this._UnregisterProtectionChangedEvent(); },
+                        getTargetIdFunc: function () { return _this.id; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.worksheetProtectionChanged,
+                                isProtected: value.isProtected,
+                                source: value.source,
+                                worksheetId: value.worksheetId
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_protectionChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Worksheet.prototype, "onRowHiddenChanged", {
             get: function () {
                 var _this = this;
@@ -26570,6 +28286,33 @@ var Excel;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Worksheet.prototype, "onVisibilityChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("Worksheet.onVisibilityChanged", "ExcelApiOnline", "1.1", _hostName);
+                if (!this.m_visibilityChanged) {
+                    this.m_visibilityChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "VisibilityChanged", {
+                        eventType: 26,
+                        registerFunc: function () { return _this._RegisterEventVisibilityChanged(); },
+                        unregisterFunc: function () { return _this._UnregisterEventVisibilityChanged(); },
+                        getTargetIdFunc: function () { return _this.id; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.worksheetVisibilityChanged,
+                                source: value.source,
+                                visibilityAfter: value.visibilityAfter,
+                                visibilityBefore: value.visibilityBefore,
+                                worksheetId: value.worksheetId
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_visibilityChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Worksheet.prototype.toJSON = function () {
             return _toJson(this, {
                 "enableCalculation": this._E,
@@ -26581,22 +28324,23 @@ var Excel;
                 "standardHeight": this._St,
                 "standardWidth": this._Sta,
                 "tabColor": this._T,
-                "visibility": this._Vi
+                "tabId": this._Ta,
+                "visibility": this._Vi,
             }, {
                 "autoFilter": this._A,
                 "charts": this.m_charts,
                 "comments": this.m_comments,
                 "customProperties": this._C,
                 "horizontalPageBreaks": this._Ho,
-                "names": this._Nam,
+                "names": this.m_names,
                 "pageLayout": this._P,
-                "pivotTables": this._Pi,
+                "pivotTables": this.m_pivotTables,
                 "protection": this._Pr,
-                "shapes": this._S,
-                "slicers": this._Sl,
+                "shapes": this.m_shapes,
+                "slicers": this._S,
                 "tables": this.m_tables,
                 "verticalPageBreaks": this._V,
-                "visuals": this.m_visuals
+                "visuals": this.m_visuals,
             });
         };
         Worksheet.prototype.setMockData = function (data) {
@@ -26618,6 +28362,18 @@ var Excel;
             ret._ParentObject = thisObj;
         }
         _CC.Worksheet_Comments_Get = Worksheet_Comments_Get;
+        function Worksheet_Names_Get(thisObj, ret) {
+            ret._ParentObject = thisObj;
+        }
+        _CC.Worksheet_Names_Get = Worksheet_Names_Get;
+        function Worksheet_PivotTables_Get(thisObj, ret) {
+            ret._ParentObject = thisObj;
+        }
+        _CC.Worksheet_PivotTables_Get = Worksheet_PivotTables_Get;
+        function Worksheet_Shapes_Get(thisObj, ret) {
+            ret._ParentObject = thisObj;
+        }
+        _CC.Worksheet_Shapes_Get = Worksheet_Shapes_Get;
         function Worksheet_ShowGridlines_Set(thisObj, value) {
             if (ALWAYS_TRUE_PLACEHOLDER_OVERRIDE) {
                 thisObj.m_showGridlines = value;
@@ -26655,6 +28411,27 @@ var Excel;
                     valueTypeAfter: value.valueTypeAfter
                 };
             }
+            var deleteShiftDirection;
+            var insertShiftDirection;
+            var changeDirectionState;
+            if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellLeft) {
+                deleteShiftDirection = Excel.DeleteShiftDirection.left;
+            }
+            else if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellUp) {
+                deleteShiftDirection = Excel.DeleteShiftDirection.up;
+            }
+            else if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellRight) {
+                insertShiftDirection = Excel.InsertShiftDirection.right;
+            }
+            else if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellDown) {
+                insertShiftDirection = Excel.InsertShiftDirection.down;
+            }
+            if (value.shiftDirection != Excel.InsertDeleteCellsShiftDirection.none) {
+                changeDirectionState = {
+                    deleteShiftDirection: deleteShiftDirection,
+                    insertShiftDirection: insertShiftDirection
+                };
+            }
             var newArgs = {
                 type: Excel.EventType.worksheetChanged,
                 changeType: value.changeType,
@@ -26669,7 +28446,9 @@ var Excel;
                     _throwIfApiNotSupported("WorksheetChangedEventArgs.getRangeOrNullObject", _defaultApiSetName, "1.8", _hostName);
                     return ctx.workbook._GetRangeOrNullObjectForEventByReferenceId(value.referenceId);
                 },
-                details: details
+                details: details,
+                triggerSource: value.triggerSource,
+                changeDirectionState: changeDirectionState,
             };
             return newArgs;
         }
@@ -26693,6 +28472,21 @@ var Excel;
             return newArgs;
         }
         _CC.Worksheet_FormatChanged_EventArgsTransform = Worksheet_FormatChanged_EventArgsTransform;
+        function Worksheet_FormulaChanged_EventArgsTransform(thisObj, args) {
+            var value = args;
+            var formulaDetails;
+            if (value.formulaDetails != null) {
+                formulaDetails = value.formulaDetails;
+            }
+            var newArgs = {
+                type: Excel.EventType.worksheetFormulaChanged,
+                source: value.source,
+                worksheetId: value.worksheetId,
+                formulaDetails: formulaDetails
+            };
+            return newArgs;
+        }
+        _CC.Worksheet_FormulaChanged_EventArgsTransform = Worksheet_FormulaChanged_EventArgsTransform;
     })(_CC = Excel._CC || (Excel._CC = {}));
     var _typeWorksheetCollection = "WorksheetCollection";
     var WorksheetCollection = (function (_super) {
@@ -26795,9 +28589,29 @@ var Excel;
             _throwIfApiNotSupported("WorksheetCollection._RegisterDeletedEvent", _defaultApiSetName, "1.7", _hostName);
             _invokeMethod(this, "_RegisterDeletedEvent", 1, [], 0, 0);
         };
+        WorksheetCollection.prototype._RegisterEventMoved = function () {
+            _throwIfApiNotSupported("WorksheetCollection._RegisterEventMoved", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_RegisterEventMoved", 0, [], 0, 0);
+        };
+        WorksheetCollection.prototype._RegisterEventNameChanged = function () {
+            _throwIfApiNotSupported("WorksheetCollection._RegisterEventNameChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_RegisterEventNameChanged", 1, [], 4, 0);
+        };
+        WorksheetCollection.prototype._RegisterEventVisibilityChanged = function () {
+            _throwIfApiNotSupported("WorksheetCollection._RegisterEventVisibilityChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_RegisterEventVisibilityChanged", 1, [], 4, 0);
+        };
         WorksheetCollection.prototype._RegisterFormatChangedEvent = function () {
             _throwIfApiNotSupported("WorksheetCollection._RegisterFormatChangedEvent", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "_RegisterFormatChangedEvent", 0, [], 0, 0);
+        };
+        WorksheetCollection.prototype._RegisterFormulaChangedEvent = function () {
+            _throwIfApiNotSupported("WorksheetCollection._RegisterFormulaChangedEvent", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "_RegisterFormulaChangedEvent", 1, [], 0, 0);
+        };
+        WorksheetCollection.prototype._RegisterProtectionChangedEvent = function () {
+            _throwIfApiNotSupported("WorksheetCollection._RegisterProtectionChangedEvent", _defaultApiSetName, "1.14", _hostName);
+            _invokeMethod(this, "_RegisterProtectionChangedEvent", 1, [], 0, 0);
         };
         WorksheetCollection.prototype._RegisterRowHiddenChangedEvent = function () {
             _throwIfApiNotSupported("WorksheetCollection._RegisterRowHiddenChangedEvent", _defaultApiSetName, "1.11", _hostName);
@@ -26863,9 +28677,29 @@ var Excel;
             _throwIfApiNotSupported("WorksheetCollection._UnregisterDeletedEvent", _defaultApiSetName, "1.7", _hostName);
             _invokeMethod(this, "_UnregisterDeletedEvent", 1, [], 0, 0);
         };
+        WorksheetCollection.prototype._UnregisterEventMoved = function () {
+            _throwIfApiNotSupported("WorksheetCollection._UnregisterEventMoved", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_UnregisterEventMoved", 0, [], 0, 0);
+        };
+        WorksheetCollection.prototype._UnregisterEventNameChanged = function () {
+            _throwIfApiNotSupported("WorksheetCollection._UnregisterEventNameChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_UnregisterEventNameChanged", 1, [], 4, 0);
+        };
+        WorksheetCollection.prototype._UnregisterEventVisibilityChanged = function () {
+            _throwIfApiNotSupported("WorksheetCollection._UnregisterEventVisibilityChanged", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "_UnregisterEventVisibilityChanged", 1, [], 4, 0);
+        };
         WorksheetCollection.prototype._UnregisterFormatChangedEvent = function () {
             _throwIfApiNotSupported("WorksheetCollection._UnregisterFormatChangedEvent", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "_UnregisterFormatChangedEvent", 0, [], 0, 0);
+        };
+        WorksheetCollection.prototype._UnregisterFormulaChangedEvent = function () {
+            _throwIfApiNotSupported("WorksheetCollection._UnregisterFormulaChangedEvent", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "_UnregisterFormulaChangedEvent", 1, [], 0, 0);
+        };
+        WorksheetCollection.prototype._UnregisterProtectionChangedEvent = function () {
+            _throwIfApiNotSupported("WorksheetCollection._UnregisterProtectionChangedEvent", _defaultApiSetName, "1.14", _hostName);
+            _invokeMethod(this, "_UnregisterProtectionChangedEvent", 1, [], 0, 0);
         };
         WorksheetCollection.prototype._UnregisterRowHiddenChangedEvent = function () {
             _throwIfApiNotSupported("WorksheetCollection._UnregisterRowHiddenChangedEvent", _defaultApiSetName, "1.11", _hostName);
@@ -27105,6 +28939,107 @@ var Excel;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(WorksheetCollection.prototype, "onFormulaChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("WorksheetCollection.onFormulaChanged", _defaultApiSetName, "1.13", _hostName);
+                if (!this.m_formulaChanged) {
+                    this.m_formulaChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "FormulaChanged", {
+                        eventType: 23,
+                        registerFunc: function () { return _this._RegisterFormulaChangedEvent(); },
+                        unregisterFunc: function () { return _this._UnregisterFormulaChangedEvent(); },
+                        getTargetIdFunc: function () { return OfficeExtension.Constants.eventWorkbookId; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = _CC.WorksheetCollection_FormulaChanged_EventArgsTransform(_this, value);
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_formulaChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(WorksheetCollection.prototype, "onMoved", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("WorksheetCollection.onMoved", "ExcelApiOnline", "1.1", _hostName);
+                if (!this.m_moved) {
+                    this.m_moved = new OfficeExtension.GenericEventHandlers(this.context, this, "Moved", {
+                        eventType: 27,
+                        registerFunc: function () { return _this._RegisterEventMoved(); },
+                        unregisterFunc: function () { return _this._UnregisterEventMoved(); },
+                        getTargetIdFunc: function () { return OfficeExtension.Constants.eventWorkbookId; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.worksheetMoved,
+                                positionAfter: value.positionAfter,
+                                positionBefore: value.positionBefore,
+                                source: value.source,
+                                worksheetId: value.worksheetId
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_moved;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(WorksheetCollection.prototype, "onNameChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("WorksheetCollection.onNameChanged", "ExcelApiOnline", "1.1", _hostName);
+                if (!this.m_nameChanged) {
+                    this.m_nameChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "NameChanged", {
+                        eventType: 25,
+                        registerFunc: function () { return _this._RegisterEventNameChanged(); },
+                        unregisterFunc: function () { return _this._UnregisterEventNameChanged(); },
+                        getTargetIdFunc: function () { return OfficeExtension.Constants.eventWorkbookId; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.worksheetNameChanged,
+                                nameAfter: value.nameAfter,
+                                nameBefore: value.nameBefore,
+                                source: value.source,
+                                worksheetId: value.worksheetId
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_nameChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(WorksheetCollection.prototype, "onProtectionChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("WorksheetCollection.onProtectionChanged", _defaultApiSetName, "1.14", _hostName);
+                if (!this.m_protectionChanged) {
+                    this.m_protectionChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "ProtectionChanged", {
+                        eventType: 24,
+                        registerFunc: function () { return _this._RegisterProtectionChangedEvent(); },
+                        unregisterFunc: function () { return _this._UnregisterProtectionChangedEvent(); },
+                        getTargetIdFunc: function () { return OfficeExtension.Constants.eventWorkbookId; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.worksheetProtectionChanged,
+                                isProtected: value.isProtected,
+                                source: value.source,
+                                worksheetId: value.worksheetId
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_protectionChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(WorksheetCollection.prototype, "onRowHiddenChanged", {
             get: function () {
                 var _this = this;
@@ -27210,6 +29145,33 @@ var Excel;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(WorksheetCollection.prototype, "onVisibilityChanged", {
+            get: function () {
+                var _this = this;
+                _throwIfApiNotSupported("WorksheetCollection.onVisibilityChanged", "ExcelApiOnline", "1.1", _hostName);
+                if (!this.m_visibilityChanged) {
+                    this.m_visibilityChanged = new OfficeExtension.GenericEventHandlers(this.context, this, "VisibilityChanged", {
+                        eventType: 26,
+                        registerFunc: function () { return _this._RegisterEventVisibilityChanged(); },
+                        unregisterFunc: function () { return _this._UnregisterEventVisibilityChanged(); },
+                        getTargetIdFunc: function () { return OfficeExtension.Constants.eventWorkbookId; },
+                        eventArgsTransformFunc: function (value) {
+                            var event = {
+                                type: EventType.worksheetVisibilityChanged,
+                                source: value.source,
+                                visibilityAfter: value.visibilityAfter,
+                                visibilityBefore: value.visibilityBefore,
+                                worksheetId: value.worksheetId
+                            };
+                            return OfficeExtension.Utility._createPromiseFromResult(event);
+                        }
+                    });
+                }
+                return this.m_visibilityChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
         WorksheetCollection.prototype.toJSON = function () {
             return _toJson(this, {}, {}, this.m__items);
         };
@@ -27290,6 +29252,27 @@ var Excel;
                     valueTypeAfter: value.valueTypeAfter
                 };
             }
+            var deleteShiftDirection;
+            var insertShiftDirection;
+            var changeDirectionState;
+            if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellLeft) {
+                deleteShiftDirection = Excel.DeleteShiftDirection.left;
+            }
+            else if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellUp) {
+                deleteShiftDirection = Excel.DeleteShiftDirection.up;
+            }
+            else if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellRight) {
+                insertShiftDirection = Excel.InsertShiftDirection.right;
+            }
+            else if (value.shiftDirection == Excel.InsertDeleteCellsShiftDirection.shiftCellDown) {
+                insertShiftDirection = Excel.InsertShiftDirection.down;
+            }
+            if (value.shiftDirection != Excel.InsertDeleteCellsShiftDirection.none) {
+                changeDirectionState = {
+                    deleteShiftDirection: deleteShiftDirection,
+                    insertShiftDirection: insertShiftDirection
+                };
+            }
             var newArgs = {
                 type: Excel.EventType.worksheetChanged,
                 changeType: value.changeType,
@@ -27304,7 +29287,9 @@ var Excel;
                     _throwIfApiNotSupported("WorksheetChangedEventArgs.getRangeOrNullObject", _defaultApiSetName, "1.9", _hostName);
                     return ctx.workbook._GetRangeOrNullObjectForEventByReferenceId(value.referenceId);
                 },
-                details: details
+                details: details,
+                triggerSource: value.triggerSource,
+                changeDirectionState: changeDirectionState,
             };
             return newArgs;
         }
@@ -27328,6 +29313,21 @@ var Excel;
             return newArgs;
         }
         _CC.WorksheetCollection_FormatChanged_EventArgsTransform = WorksheetCollection_FormatChanged_EventArgsTransform;
+        function WorksheetCollection_FormulaChanged_EventArgsTransform(thisObj, args) {
+            var value = args;
+            var formulaDetails;
+            if (value.formulaDetails != null) {
+                formulaDetails = value.formulaDetails;
+            }
+            var newArgs = {
+                type: Excel.EventType.worksheetFormulaChanged,
+                source: value.source,
+                worksheetId: value.worksheetId,
+                formulaDetails: formulaDetails
+            };
+            return newArgs;
+        }
+        _CC.WorksheetCollection_FormulaChanged_EventArgsTransform = WorksheetCollection_FormulaChanged_EventArgsTransform;
     })(_CC = Excel._CC || (Excel._CC = {}));
     var _typeWorksheetProtection = "WorksheetProtection";
     var WorksheetProtection = (function (_super) {
@@ -27408,7 +29408,7 @@ var Excel;
         WorksheetProtection.prototype.toJSON = function () {
             return _toJson(this, {
                 "options": this._O,
-                "protected": this._P
+                "protected": this._P,
             }, {});
         };
         WorksheetProtection.prototype.setMockData = function (data) {
@@ -27766,7 +29766,7 @@ var Excel;
                     return;
                 }
                 this.m_numberFormat = value;
-                _invokeSetProperty(this, "NumberFormat", value, 0);
+                _invokeSetProperty(this, "NumberFormat", value, _calculateApiFlags(2, "ExcelApiUndo", "1.7"));
             },
             enumerable: true,
             configurable: true
@@ -27788,7 +29788,7 @@ var Excel;
             },
             set: function (value) {
                 this._Nu = value;
-                _invokeSetProperty(this, "NumberFormatLocal", value, 0);
+                _invokeSetProperty(this, "NumberFormatLocal", value, _calculateApiFlags(2, "ExcelApiUndo", "1.7"));
             },
             enumerable: true,
             configurable: true
@@ -27880,7 +29880,7 @@ var Excel;
                     return;
                 }
                 this.m_values = value;
-                _invokeSetProperty(this, "Values", value, 0);
+                _invokeSetProperty(this, "Values", value, _calculateApiFlags(2, "ExcelApiUndo", "1.7"));
             },
             enumerable: true,
             configurable: true
@@ -27935,7 +29935,7 @@ var Excel;
             _throwIfApiNotSupported("Range.copyFrom", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "CopyFrom", 0, [sourceRange, copyType, skipBlanks, transpose], 0, 0);
         };
-        Range.prototype["delete"] = function (shift) {
+        Range.prototype.delete = function (shift) {
             _invokeMethod(this, "Delete", 0, [shift], 0, 0);
         };
         Range.prototype.find = function (text, criteria) {
@@ -27991,6 +29991,14 @@ var Excel;
             _throwIfApiNotSupported("Range.getDataClassificationIds", "ExcelApiOnline", "1.1", _hostName);
             return _invokeMethod(this, "GetDataClassificationIds", 1, [], 4, 0);
         };
+        Range.prototype.getDependents = function () {
+            _throwIfApiNotSupported("Range.getDependents", _defaultApiSetName, "1.15", _hostName);
+            return _createMethodObject(Excel.WorkbookRangeAreas, this, "GetDependents", 1, [], false, true, null, 4);
+        };
+        Range.prototype.getDirectDependents = function () {
+            _throwIfApiNotSupported("Range.getDirectDependents", _defaultApiSetName, "1.13", _hostName);
+            return _createMethodObject(Excel.WorkbookRangeAreas, this, "GetDirectDependents", 1, [], false, true, null, 4);
+        };
         Range.prototype.getDirectPrecedents = function () {
             _throwIfApiNotSupported("Range.getDirectPrecedents", _defaultApiSetName, "1.12", _hostName);
             return _createMethodObject(Excel.WorkbookRangeAreas, this, "GetDirectPrecedents", 1, [], false, true, null, 4);
@@ -28002,7 +30010,7 @@ var Excel;
             return _createMethodObject(Excel.Range, this, "GetEntireRow", 1, [], false, true, null, 4);
         };
         Range.prototype.getExtendedRange = function (direction, activeCell) {
-            _throwIfApiNotSupported("Range.getExtendedRange", "ExcelApiOnline", "1.1", _hostName);
+            _throwIfApiNotSupported("Range.getExtendedRange", _defaultApiSetName, "1.13", _hostName);
             return _createMethodObject(Excel.Range, this, "GetExtendedRange", 1, [direction, activeCell], false, true, null, 4);
         };
         Range.prototype.getImage = function () {
@@ -28029,6 +30037,14 @@ var Excel;
             _throwIfApiNotSupported("Range.getMergedAreas", "ExcelApiOnline", "1.1", _hostName);
             return _createMethodObject(Excel.RangeAreas, this, "GetMergedAreas", 1, [], false, true, null, 4);
         };
+        Range.prototype.getMergedAreasOrNullObject = function () {
+            _throwIfApiNotSupported("Range.getMergedAreasOrNullObject", _defaultApiSetName, "1.13", _hostName);
+            return _createMethodObject(Excel.RangeAreas, this, "GetMergedAreasOrNullObject", 0, [], false, false, null, _calculateApiFlags(2, "ExcelApiUndo", "1.7"));
+        };
+        Range.prototype.getNumberFormatProperties = function () {
+            _throwIfApiNotSupported("Range.getNumberFormatProperties", _defaultApiSetName, "1.15", _hostName);
+            return _createMethodObject(Excel.NumberFormatPropertyCollection, this, "GetNumberFormatProperties", 1, [], true, false, null, 4);
+        };
         Range.prototype.getOffsetRange = function (rowOffset, columnOffset) {
             return _createMethodObject(Excel.Range, this, "GetOffsetRange", 1, [rowOffset, columnOffset], false, true, null, 4);
         };
@@ -28036,8 +30052,12 @@ var Excel;
             _throwIfApiNotSupported("Range.getPivotTables", _defaultApiSetName, "1.12", _hostName);
             return _createMethodObject(Excel.PivotTableScopedCollection, this, "GetPivotTables", 1, [fullyContained], true, false, null, 4);
         };
+        Range.prototype.getPrecedents = function () {
+            _throwIfApiNotSupported("Range.getPrecedents", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.WorkbookRangeAreas, this, "GetPrecedents", 1, [], false, true, null, 4);
+        };
         Range.prototype.getRangeEdge = function (direction, activeCell) {
-            _throwIfApiNotSupported("Range.getRangeEdge", "ExcelApiOnline", "1.1", _hostName);
+            _throwIfApiNotSupported("Range.getRangeEdge", _defaultApiSetName, "1.13", _hostName);
             return _createMethodObject(Excel.Range, this, "GetRangeEdge", 1, [direction, activeCell], false, true, null, 4);
         };
         Range.prototype.getResizedRange = function (deltaRows, deltaColumns) {
@@ -28094,6 +30114,10 @@ var Excel;
         Range.prototype.getSpillingToRangeOrNullObject = function () {
             _throwIfApiNotSupported("Range.getSpillingToRangeOrNullObject", _defaultApiSetName, "1.12", _hostName);
             return _createMethodObject(Excel.Range, this, "GetSpillingToRangeOrNullObject", 1, [], false, true, null, 4);
+        };
+        Range.prototype.getSurroundingDataRegion = function () {
+            _throwIfApiNotSupported("Range.getSurroundingDataRegion", _defaultApiSetName, "1.15", _hostName);
+            return _createMethodObject(Excel.Range, this, "GetSurroundingDataRegion", 1, [], false, false, null, 4);
         };
         Range.prototype.getSurroundingRegion = function () {
             _throwIfApiNotSupported("Range.getSurroundingRegion", _defaultApiSetName, "1.7", _hostName);
@@ -28347,11 +30371,11 @@ var Excel;
                 "top": this._To,
                 "values": this.m_values,
                 "valueTypes": this._V,
-                "width": this._W
+                "width": this._W,
             }, {
                 "conditionalFormats": this._Con,
                 "dataValidation": this._D,
-                "format": this._F
+                "format": this._F,
             });
         };
         Range.prototype.setMockData = function (data) {
@@ -28508,7 +30532,7 @@ var Excel;
         _CC.Range_FormulasR1C1_Set = Range_FormulasR1C1_Set;
         function Range_NumberFormat_Set(thisObj, value) {
             thisObj.m_numberFormat = value;
-            if (setRangePropertiesInBulk(thisObj, "NumberFormat", value)) {
+            if (setRangePropertiesInBulk(thisObj, "NumberFormat", value, _calculateApiFlags(2, "ExcelApiUndo", "1.7"))) {
                 return { handled: true };
             }
             return { handled: false };
@@ -28516,7 +30540,7 @@ var Excel;
         _CC.Range_NumberFormat_Set = Range_NumberFormat_Set;
         function Range_Values_Set(thisObj, value) {
             thisObj.m_values = value;
-            if (setRangePropertiesInBulk(thisObj, "Values", value)) {
+            if (setRangePropertiesInBulk(thisObj, "Values", value, _calculateApiFlags(2, "ExcelApiUndo", "1.7"))) {
                 return { handled: true };
             }
             return { handled: false };
@@ -28810,12 +30834,12 @@ var Excel;
                 "cellCount": this._C,
                 "isEntireColumn": this.m_isEntireColumn,
                 "isEntireRow": this.m_isEntireRow,
-                "style": this._S
+                "style": this._S,
             }, {
                 "areas": this._Are,
                 "conditionalFormats": this._Co,
                 "dataValidation": this._D,
-                "format": this._F
+                "format": this._F,
             });
         };
         RangeAreas.prototype.setMockData = function (data) {
@@ -28950,10 +30974,10 @@ var Excel;
         };
         WorkbookRangeAreas.prototype.toJSON = function () {
             return _toJson(this, {
-                "addresses": this._A
+                "addresses": this._A,
             }, {
                 "areas": this._Ar,
-                "ranges": this._R
+                "ranges": this._R,
             });
         };
         WorkbookRangeAreas.prototype.setMockData = function (data) {
@@ -29199,9 +31223,9 @@ var Excel;
                 "rowCount": this._R,
                 "text": this._T,
                 "values": this._V,
-                "valueTypes": this._Va
+                "valueTypes": this._Va,
             }, {
-                "rows": this._Ro
+                "rows": this._Ro,
             });
         };
         RangeView.prototype.setMockData = function (data) {
@@ -29475,7 +31499,7 @@ var Excel;
         Setting.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        Setting.prototype["delete"] = function () {
+        Setting.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Setting.prototype._handleResult = function (value) {
@@ -29517,7 +31541,7 @@ var Excel;
         Setting.prototype.toJSON = function () {
             return _toJson(this, {
                 "key": this._K,
-                "value": this.m_value
+                "value": this.m_value,
             }, {});
         };
         Setting.prototype.setMockData = function (data) {
@@ -29657,6 +31681,30 @@ var Excel;
         return NamedItemCollection;
     }(OfficeExtension.ClientObject));
     Excel.NamedItemCollection = NamedItemCollection;
+    var NamedItemCollectionCustom = (function () {
+        function NamedItemCollectionCustom() {
+        }
+        Object.defineProperty(NamedItemCollectionCustom.prototype, "_ParentObject", {
+            get: function () {
+                return this.m__ParentObject;
+            },
+            set: function (value) {
+                this.m__ParentObject = value;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(NamedItemCollectionCustom.prototype, "_eventTargetId", {
+            get: function () {
+                return this._ParentObject ? this._ParentObject.id : OfficeExtension.Constants.eventWorkbookId;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return NamedItemCollectionCustom;
+    }());
+    Excel.NamedItemCollectionCustom = NamedItemCollectionCustom;
+    OfficeExtension.Utility.applyMixin(NamedItemCollection, NamedItemCollectionCustom);
     var _typeNamedItem = "NamedItem";
     var NamedItem = (function (_super) {
         __extends(NamedItem, _super);
@@ -29820,7 +31868,7 @@ var Excel;
         NamedItem.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        NamedItem.prototype["delete"] = function () {
+        NamedItem.prototype.delete = function () {
             _throwIfApiNotSupported("NamedItem.delete", _defaultApiSetName, "1.4", _hostName);
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
@@ -29890,9 +31938,9 @@ var Excel;
                 "scope": this._S,
                 "type": this._T,
                 "value": this._V,
-                "visible": this._Vi
+                "visible": this._Vi,
             }, {
-                "arrayValues": this._A
+                "arrayValues": this._A,
             });
         };
         NamedItem.prototype.setMockData = function (data) {
@@ -29974,7 +32022,7 @@ var Excel;
         NamedItemArrayValues.prototype.toJSON = function () {
             return _toJson(this, {
                 "types": this._T,
-                "values": this._V
+                "values": this._V,
             }, {});
         };
         NamedItemArrayValues.prototype.setMockData = function (data) {
@@ -30030,7 +32078,7 @@ var Excel;
             enumerable: true,
             configurable: true
         });
-        Binding.prototype["delete"] = function () {
+        Binding.prototype.delete = function () {
             _throwIfApiNotSupported("Binding.delete", _defaultApiSetName, "1.3", _hostName);
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
@@ -30124,7 +32172,7 @@ var Excel;
         Binding.prototype.toJSON = function () {
             return _toJson(this, {
                 "id": this._I,
-                "type": this._T
+                "type": this._T,
             }, {});
         };
         Binding.prototype.setMockData = function (data) {
@@ -30265,7 +32313,7 @@ var Excel;
         };
         BindingCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {}, this.m__items);
         };
         BindingCollection.prototype.setMockData = function (data) {
@@ -30472,7 +32520,7 @@ var Excel;
         });
         TableCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {}, this.m__items);
         };
         TableCollection.prototype.setMockData = function (data) {
@@ -30575,6 +32623,10 @@ var Excel;
         };
         TableScopedCollection.prototype.getItem = function (key) {
             return _createIndexerObject(Excel.Table, this, [key]);
+        };
+        TableScopedCollection.prototype.getItemOrNullObject = function (key) {
+            _throwIfApiNotSupported("TableScopedCollection.getItemOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.Table, this, "GetItemOrNullObject", 1, [key], false, false, null, 4);
         };
         TableScopedCollection.prototype._handleResult = function (value) {
             _super.prototype._handleResult.call(this, value);
@@ -30864,7 +32916,7 @@ var Excel;
             _throwIfApiNotSupported("Table.convertToRange", _defaultApiSetName, "1.2", _hostName);
             return _createMethodObject(Excel.Range, this, "ConvertToRange", 0, [], false, true, null, 0);
         };
-        Table.prototype["delete"] = function () {
+        Table.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Table.prototype.getDataBodyRange = function () {
@@ -30884,7 +32936,7 @@ var Excel;
             _invokeMethod(this, "ReapplyFilters", 0, [], 0, 0);
         };
         Table.prototype.resize = function (newRange) {
-            _throwIfApiNotSupported("Table.resize", "ExcelApiOnline", "1.1", _hostName);
+            _throwIfApiNotSupported("Table.resize", _defaultApiSetName, "1.13", _hostName);
             _invokeMethod(this, "Resize", 0, [newRange], 0, 0);
         };
         Table.prototype._RegisterDataChangedEvent = function () {
@@ -31019,12 +33071,12 @@ var Excel;
                 "showFilterButton": this._Sho,
                 "showHeaders": this._Show,
                 "showTotals": this._ShowT,
-                "style": this._St
+                "style": this._St,
             }, {
                 "autoFilter": this._A,
                 "columns": this._C,
                 "rows": this._R,
-                "sort": this._So
+                "sort": this._So,
             });
         };
         Table.prototype.setMockData = function (data) {
@@ -31194,7 +33246,7 @@ var Excel;
         };
         TableColumnCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {}, this.m__items);
         };
         TableColumnCollection.prototype.setMockData = function (data) {
@@ -31304,7 +33356,7 @@ var Excel;
         TableColumn.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        TableColumn.prototype["delete"] = function () {
+        TableColumn.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         TableColumn.prototype.getDataBodyRange = function () {
@@ -31363,9 +33415,9 @@ var Excel;
                 "id": this._I,
                 "index": this._In,
                 "name": this._N,
-                "values": this._V
+                "values": this._V,
             }, {
-                "filter": this._F
+                "filter": this._F,
             });
         };
         TableColumn.prototype.setMockData = function (data) {
@@ -31428,8 +33480,16 @@ var Excel;
             enumerable: true,
             configurable: true
         });
-        TableRowCollection.prototype.add = function (index, values) {
-            return _createMethodObject(Excel.TableRow, this, "Add", 0, [index, values], false, true, null, 0);
+        TableRowCollection.prototype.add = function (index, values, alwaysInsert) {
+            return _createMethodObject(Excel.TableRow, this, "Add", 0, [index, values, alwaysInsert], false, true, null, _calculateApiFlags(2, "ExcelApiUndo", "99.0"));
+        };
+        TableRowCollection.prototype.deleteRows = function (rows) {
+            _throwIfApiNotSupported("TableRowCollection.deleteRows", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "DeleteRows", 0, [rows], 0, 0);
+        };
+        TableRowCollection.prototype.deleteRowsAt = function (index, count) {
+            _throwIfApiNotSupported("TableRowCollection.deleteRowsAt", "ExcelApiOnline", "1.1", _hostName);
+            _invokeMethod(this, "DeleteRowsAt", 0, [index, count], 0, 0);
         };
         TableRowCollection.prototype.getCount = function () {
             _throwIfApiNotSupported("TableRowCollection.getCount", _defaultApiSetName, "1.4", _hostName);
@@ -31470,7 +33530,7 @@ var Excel;
         };
         TableRowCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {}, this.m__items);
         };
         TableRowCollection.prototype.setMockData = function (data) {
@@ -31540,8 +33600,8 @@ var Excel;
         TableRow.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        TableRow.prototype["delete"] = function () {
-            _invokeMethod(this, "Delete", 0, [], 0, 0);
+        TableRow.prototype.delete = function () {
+            _invokeMethod(this, "Delete", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "99.0"), 0);
         };
         TableRow.prototype.getRange = function () {
             return _createMethodObject(Excel.Range, this, "GetRange", 1, [], false, true, null, 4);
@@ -31572,7 +33632,7 @@ var Excel;
         TableRow.prototype.toJSON = function () {
             return _toJson(this, {
                 "index": this._I,
-                "values": this._V
+                "values": this._V,
             }, {});
         };
         TableRow.prototype.setMockData = function (data) {
@@ -31742,7 +33802,7 @@ var Excel;
                 "prompt": this._P,
                 "rule": this._R,
                 "type": this._T,
-                "valid": this._V
+                "valid": this._V,
             }, {});
         };
         DataValidation.prototype.setMockData = function (data) {
@@ -31824,7 +33884,7 @@ var Excel;
         RemoveDuplicatesResult.prototype.toJSON = function () {
             return _toJson(this, {
                 "removed": this._R,
-                "uniqueRemaining": this._U
+                "uniqueRemaining": this._U,
             }, {});
         };
         RemoveDuplicatesResult.prototype.setMockData = function (data) {
@@ -32159,12 +34219,12 @@ var Excel;
                 "useStandardHeight": this._U,
                 "useStandardWidth": this._Us,
                 "verticalAlignment": this._V,
-                "wrapText": this._W
+                "wrapText": this._W,
             }, {
                 "borders": this._B,
                 "fill": this._F,
                 "font": this._Fo,
-                "protection": this._P
+                "protection": this._P,
             });
         };
         RangeFormat.prototype.setMockData = function (data) {
@@ -32267,7 +34327,7 @@ var Excel;
         FormatProtection.prototype.toJSON = function () {
             return _toJson(this, {
                 "formulaHidden": this._F,
-                "locked": this._L
+                "locked": this._L,
             }, {});
         };
         FormatProtection.prototype.setMockData = function (data) {
@@ -32425,7 +34485,7 @@ var Excel;
                 "pattern": this._P,
                 "patternColor": this._Pa,
                 "patternTintAndShade": this._Pat,
-                "tintAndShade": this._T
+                "tintAndShade": this._T,
             }, {});
         };
         RangeFill.prototype.setMockData = function (data) {
@@ -32573,7 +34633,7 @@ var Excel;
                 "sideIndex": this._S,
                 "style": this._St,
                 "tintAndShade": this._T,
-                "weight": this._W
+                "weight": this._W,
             }, {});
         };
         RangeBorder.prototype.setMockData = function (data) {
@@ -32698,7 +34758,7 @@ var Excel;
         RangeBorderCollection.prototype.toJSON = function () {
             return _toJson(this, {
                 "count": this._C,
-                "tintAndShade": this._T
+                "tintAndShade": this._T,
             }, {}, this.m__items);
         };
         RangeBorderCollection.prototype.setMockData = function (data) {
@@ -32930,7 +34990,7 @@ var Excel;
                 "subscript": this._Su,
                 "superscript": this._Sup,
                 "tintAndShade": this._T,
-                "underline": this._U
+                "underline": this._U,
             }, {});
         };
         RangeFont.prototype.setMockData = function (data) {
@@ -33183,7 +35243,7 @@ var Excel;
         });
         ChartCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {}, this.m__items);
         };
         ChartCollection.prototype.setMockData = function (data) {
@@ -33552,8 +35612,16 @@ var Excel;
             _throwIfApiNotSupported("Chart.activate", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "Activate", 1, [], 0, 0);
         };
-        Chart.prototype["delete"] = function () {
+        Chart.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.5"), 0);
+        };
+        Chart.prototype.getDataTable = function () {
+            _throwIfApiNotSupported("Chart.getDataTable", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.ChartDataTable, this, "GetDataTable", 1, [], false, false, null, 4);
+        };
+        Chart.prototype.getDataTableOrNullObject = function () {
+            _throwIfApiNotSupported("Chart.getDataTableOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.ChartDataTable, this, "GetDataTableOrNullObject", 1, [], false, false, null, 4);
         };
         Chart.prototype.getImage = function (width, height, fittingMode) {
             _throwIfApiNotSupported("Chart.getImage", _defaultApiSetName, "1.2", _hostName);
@@ -33723,7 +35791,7 @@ var Excel;
                 "showDataLabelsOverMaximum": this._Sho,
                 "style": this._St,
                 "top": this._To,
-                "width": this._W
+                "width": this._W,
             }, {
                 "axes": this._A,
                 "dataLabels": this._D,
@@ -33732,7 +35800,7 @@ var Excel;
                 "pivotOptions": this._P,
                 "plotArea": this._Pl,
                 "series": this._S,
-                "title": this._T
+                "title": this._T,
             });
         };
         Chart.prototype.setMockData = function (data) {
@@ -33876,7 +35944,7 @@ var Excel;
                 "showAxisFieldButtons": this._S,
                 "showLegendFieldButtons": this._Sh,
                 "showReportFilterFieldButtons": this._Sho,
-                "showValueFieldButtons": this._Show
+                "showValueFieldButtons": this._Show,
             }, {});
         };
         ChartPivotOptions.prototype.setMockData = function (data) {
@@ -34022,10 +36090,10 @@ var Excel;
         ChartAreaFormat.prototype.toJSON = function () {
             return _toJson(this, {
                 "colorScheme": this._C,
-                "roundedCorners": this._R
+                "roundedCorners": this._R,
             }, {
                 "border": this._B,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         ChartAreaFormat.prototype.setMockData = function (data) {
@@ -34131,7 +36199,7 @@ var Excel;
         };
         ChartSeriesCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {}, this.m__items);
         };
         ChartSeriesCollection.prototype.setMockData = function (data) {
@@ -34287,7 +36355,7 @@ var Excel;
             },
             set: function (value) {
                 this._A = value;
-                _invokeSetProperty(this, "AxisGroup", value, 0);
+                _invokeSetProperty(this, "AxisGroup", value, _calculateApiFlags(2, "ExcelApiUndo", "1.5"));
             },
             enumerable: true,
             configurable: true
@@ -34313,7 +36381,7 @@ var Excel;
             },
             set: function (value) {
                 this._C = value;
-                _invokeSetProperty(this, "ChartType", value, 0);
+                _invokeSetProperty(this, "ChartType", value, _calculateApiFlags(2, "ExcelApiUndo", "1.6"));
             },
             enumerable: true,
             configurable: true
@@ -34768,9 +36836,17 @@ var Excel;
         ChartSeries.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        ChartSeries.prototype["delete"] = function () {
+        ChartSeries.prototype.delete = function () {
             _throwIfApiNotSupported("ChartSeries.delete", _defaultApiSetName, "1.7", _hostName);
             _invokeMethod(this, "Delete", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.5"), 0);
+        };
+        ChartSeries.prototype.getDimensionDataSourceString = function (dimension) {
+            _throwIfApiNotSupported("ChartSeries.getDimensionDataSourceString", _defaultApiSetName, "1.15", _hostName);
+            return _invokeMethod(this, "GetDimensionDataSourceString", 0, [dimension], 0, 0);
+        };
+        ChartSeries.prototype.getDimensionDataSourceType = function (dimension) {
+            _throwIfApiNotSupported("ChartSeries.getDimensionDataSourceType", _defaultApiSetName, "1.15", _hostName);
+            return _invokeMethod(this, "GetDimensionDataSourceType", 0, [dimension], 0, 0);
         };
         ChartSeries.prototype.getDimensionValues = function (dimension) {
             _throwIfApiNotSupported("ChartSeries.getDimensionValues", _defaultApiSetName, "1.12", _hostName);
@@ -34955,7 +37031,7 @@ var Excel;
                 "smooth": this._Sm,
                 "splitType": this._Sp,
                 "splitValue": this._Spl,
-                "varyByCategories": this._V
+                "varyByCategories": this._V,
             }, {
                 "binOptions": this._B,
                 "boxwhiskerOptions": this._Bo,
@@ -34965,7 +37041,7 @@ var Excel;
                 "points": this._Po,
                 "trendlines": this._T,
                 "xErrorBars": this._X,
-                "yErrorBars": this._Y
+                "yErrorBars": this._Y,
             });
         };
         ChartSeries.prototype.setMockData = function (data) {
@@ -35046,7 +37122,7 @@ var Excel;
         };
         ChartSeriesFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "line": this._L
+                "line": this._L,
             });
         };
         ChartSeriesFormat.prototype.setMockData = function (data) {
@@ -35148,7 +37224,7 @@ var Excel;
         };
         ChartPointsCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {}, this.m__items);
         };
         ChartPointsCollection.prototype.setMockData = function (data) {
@@ -35342,10 +37418,10 @@ var Excel;
                 "markerForegroundColor": this._Ma,
                 "markerSize": this._Mar,
                 "markerStyle": this._Mark,
-                "value": this._V
+                "value": this._V,
             }, {
                 "dataLabel": this._D,
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartPoint.prototype.setMockData = function (data) {
@@ -35427,7 +37503,7 @@ var Excel;
         };
         ChartPointFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "border": this._B
+                "border": this._B,
             });
         };
         ChartPointFormat.prototype.setMockData = function (data) {
@@ -35522,7 +37598,7 @@ var Excel;
             return _toJson(this, {}, {
                 "categoryAxis": this._C,
                 "seriesAxis": this._S,
-                "valueAxis": this._V
+                "valueAxis": this._V,
             });
         };
         ChartAxes.prototype.setMockData = function (data) {
@@ -36246,12 +38322,12 @@ var Excel;
                 "top": this._To,
                 "type": this._Ty,
                 "visible": this._V,
-                "width": this._W
+                "width": this._W,
             }, {
                 "format": this._F,
                 "majorGridlines": this._M,
                 "minorGridlines": this._Min,
-                "title": this._Tit
+                "title": this._Tit,
             });
         };
         ChartAxis.prototype.setMockData = function (data) {
@@ -36344,7 +38420,7 @@ var Excel;
         ChartAxisFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
                 "font": this._Fo,
-                "line": this._L
+                "line": this._L,
             });
         };
         ChartAxisFormat.prototype.setMockData = function (data) {
@@ -36486,9 +38562,9 @@ var Excel;
             return _toJson(this, {
                 "text": this._T,
                 "textOrientation": this._Te,
-                "visible": this._V
+                "visible": this._V,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartAxisTitle.prototype.setMockData = function (data) {
@@ -36582,7 +38658,7 @@ var Excel;
         ChartAxisTitleFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
                 "border": this._B,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         ChartAxisTitleFormat.prototype.setMockData = function (data) {
@@ -36901,9 +38977,9 @@ var Excel;
                 "showSeriesName": this._ShowS,
                 "showValue": this._ShowV,
                 "textOrientation": this._T,
-                "verticalAlignment": this._V
+                "verticalAlignment": this._V,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartDataLabels.prototype.setMockData = function (data) {
@@ -37317,9 +39393,9 @@ var Excel;
                 "textOrientation": this._Te,
                 "top": this._To,
                 "verticalAlignment": this._V,
-                "width": this._W
+                "width": this._W,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartDataLabel.prototype.setMockData = function (data) {
@@ -37412,7 +39488,7 @@ var Excel;
         ChartDataLabelFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
                 "border": this._B,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         ChartDataLabelFormat.prototype.setMockData = function (data) {
@@ -37425,6 +39501,269 @@ var Excel;
         return ChartDataLabelFormat;
     }(OfficeExtension.ClientObject));
     Excel.ChartDataLabelFormat = ChartDataLabelFormat;
+    var _typeChartDataTable = "ChartDataTable";
+    var ChartDataTable = (function (_super) {
+        __extends(ChartDataTable, _super);
+        function ChartDataTable() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(ChartDataTable.prototype, "_className", {
+            get: function () {
+                return "ChartDataTable";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "_scalarPropertyNames", {
+            get: function () {
+                return ["visible", "showLegendKey", "showHorizontalBorder", "showVerticalBorder", "showOutlineBorder"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "_scalarPropertyOriginalNames", {
+            get: function () {
+                return ["Visible", "ShowLegendKey", "ShowHorizontalBorder", "ShowVerticalBorder", "ShowOutlineBorder"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "_scalarPropertyUpdateable", {
+            get: function () {
+                return [true, true, true, true, true];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "_navigationPropertyNames", {
+            get: function () {
+                return ["format"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "format", {
+            get: function () {
+                if (!this._F) {
+                    this._F = _createPropertyObject(Excel.ChartDataTableFormat, this, "Format", false, 4);
+                }
+                return this._F;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "showHorizontalBorder", {
+            get: function () {
+                _throwIfNotLoaded("showHorizontalBorder", this._S, _typeChartDataTable, this._isNull);
+                return this._S;
+            },
+            set: function (value) {
+                this._S = value;
+                _invokeSetProperty(this, "ShowHorizontalBorder", value, 0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "showLegendKey", {
+            get: function () {
+                _throwIfNotLoaded("showLegendKey", this._Sh, _typeChartDataTable, this._isNull);
+                return this._Sh;
+            },
+            set: function (value) {
+                this._Sh = value;
+                _invokeSetProperty(this, "ShowLegendKey", value, 0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "showOutlineBorder", {
+            get: function () {
+                _throwIfNotLoaded("showOutlineBorder", this._Sho, _typeChartDataTable, this._isNull);
+                return this._Sho;
+            },
+            set: function (value) {
+                this._Sho = value;
+                _invokeSetProperty(this, "ShowOutlineBorder", value, 0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "showVerticalBorder", {
+            get: function () {
+                _throwIfNotLoaded("showVerticalBorder", this._Show, _typeChartDataTable, this._isNull);
+                return this._Show;
+            },
+            set: function (value) {
+                this._Show = value;
+                _invokeSetProperty(this, "ShowVerticalBorder", value, 0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTable.prototype, "visible", {
+            get: function () {
+                _throwIfNotLoaded("visible", this._V, _typeChartDataTable, this._isNull);
+                return this._V;
+            },
+            set: function (value) {
+                this._V = value;
+                _invokeSetProperty(this, "Visible", value, 0);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        ChartDataTable.prototype.set = function (properties, options) {
+            this._recursivelySet(properties, options, ["visible", "showLegendKey", "showHorizontalBorder", "showVerticalBorder", "showOutlineBorder"], ["format"], []);
+        };
+        ChartDataTable.prototype.update = function (properties) {
+            this._recursivelyUpdate(properties);
+        };
+        ChartDataTable.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            if (!_isUndefined(obj["ShowHorizontalBorder"])) {
+                this._S = obj["ShowHorizontalBorder"];
+            }
+            if (!_isUndefined(obj["ShowLegendKey"])) {
+                this._Sh = obj["ShowLegendKey"];
+            }
+            if (!_isUndefined(obj["ShowOutlineBorder"])) {
+                this._Sho = obj["ShowOutlineBorder"];
+            }
+            if (!_isUndefined(obj["ShowVerticalBorder"])) {
+                this._Show = obj["ShowVerticalBorder"];
+            }
+            if (!_isUndefined(obj["Visible"])) {
+                this._V = obj["Visible"];
+            }
+            _handleNavigationPropertyResults(this, obj, ["format", "Format"]);
+        };
+        ChartDataTable.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        ChartDataTable.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        ChartDataTable.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        ChartDataTable.prototype.toJSON = function () {
+            return _toJson(this, {
+                "showHorizontalBorder": this._S,
+                "showLegendKey": this._Sh,
+                "showOutlineBorder": this._Sho,
+                "showVerticalBorder": this._Show,
+                "visible": this._V,
+            }, {
+                "format": this._F,
+            });
+        };
+        ChartDataTable.prototype.setMockData = function (data) {
+            _setMockData(this, data);
+        };
+        ChartDataTable.prototype.ensureUnchanged = function (data) {
+            _invokeEnsureUnchanged(this, data);
+            return;
+        };
+        return ChartDataTable;
+    }(OfficeExtension.ClientObject));
+    Excel.ChartDataTable = ChartDataTable;
+    var _typeChartDataTableFormat = "ChartDataTableFormat";
+    var ChartDataTableFormat = (function (_super) {
+        __extends(ChartDataTableFormat, _super);
+        function ChartDataTableFormat() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Object.defineProperty(ChartDataTableFormat.prototype, "_className", {
+            get: function () {
+                return "ChartDataTableFormat";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTableFormat.prototype, "_navigationPropertyNames", {
+            get: function () {
+                return ["fill", "font", "border"];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTableFormat.prototype, "border", {
+            get: function () {
+                if (!this._B) {
+                    this._B = _createPropertyObject(Excel.ChartBorder, this, "Border", false, 4);
+                }
+                return this._B;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTableFormat.prototype, "fill", {
+            get: function () {
+                if (!this._F) {
+                    this._F = _createPropertyObject(Excel.ChartFill, this, "Fill", false, 4);
+                }
+                return this._F;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(ChartDataTableFormat.prototype, "font", {
+            get: function () {
+                if (!this._Fo) {
+                    this._Fo = _createPropertyObject(Excel.ChartFont, this, "Font", false, 4);
+                }
+                return this._Fo;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        ChartDataTableFormat.prototype.set = function (properties, options) {
+            this._recursivelySet(properties, options, [], ["font", "border"], [
+                "fill"
+            ]);
+        };
+        ChartDataTableFormat.prototype.update = function (properties) {
+            this._recursivelyUpdate(properties);
+        };
+        ChartDataTableFormat.prototype._handleResult = function (value) {
+            _super.prototype._handleResult.call(this, value);
+            if (_isNullOrUndefined(value))
+                return;
+            var obj = value;
+            _fixObjectPathIfNecessary(this, obj);
+            _handleNavigationPropertyResults(this, obj, ["border", "Border", "fill", "Fill", "font", "Font"]);
+        };
+        ChartDataTableFormat.prototype.load = function (options) {
+            return _load(this, options);
+        };
+        ChartDataTableFormat.prototype.retrieve = function (option) {
+            return _retrieve(this, option);
+        };
+        ChartDataTableFormat.prototype._handleRetrieveResult = function (value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result);
+            _processRetrieveResult(this, value, result);
+        };
+        ChartDataTableFormat.prototype.toJSON = function () {
+            return _toJson(this, {}, {
+                "border": this._B,
+                "font": this._Fo,
+            });
+        };
+        ChartDataTableFormat.prototype.setMockData = function (data) {
+            _setMockData(this, data);
+        };
+        ChartDataTableFormat.prototype.ensureUnchanged = function (data) {
+            _invokeEnsureUnchanged(this, data);
+            return;
+        };
+        return ChartDataTableFormat;
+    }(OfficeExtension.ClientObject));
+    Excel.ChartDataTableFormat = ChartDataTableFormat;
     var _typeChartErrorBars = "ChartErrorBars";
     var ChartErrorBars = (function (_super) {
         __extends(ChartErrorBars, _super);
@@ -37565,9 +39904,9 @@ var Excel;
                 "endStyleCap": this._E,
                 "include": this._I,
                 "type": this._T,
-                "visible": this._V
+                "visible": this._V,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartErrorBars.prototype.setMockData = function (data) {
@@ -37636,7 +39975,7 @@ var Excel;
         };
         ChartErrorBarsFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "line": this._L
+                "line": this._L,
             });
         };
         ChartErrorBarsFormat.prototype.setMockData = function (data) {
@@ -37741,9 +40080,9 @@ var Excel;
         };
         ChartGridlines.prototype.toJSON = function () {
             return _toJson(this, {
-                "visible": this._V
+                "visible": this._V,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartGridlines.prototype.setMockData = function (data) {
@@ -37812,7 +40151,7 @@ var Excel;
         };
         ChartGridlinesFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "line": this._L
+                "line": this._L,
             });
         };
         ChartGridlinesFormat.prototype.setMockData = function (data) {
@@ -38047,10 +40386,10 @@ var Excel;
                 "showShadow": this._S,
                 "top": this._T,
                 "visible": this._V,
-                "width": this._W
+                "width": this._W,
             }, {
                 "format": this._F,
-                "legendEntries": this._Le
+                "legendEntries": this._Le,
             });
         };
         ChartLegend.prototype.setMockData = function (data) {
@@ -38202,7 +40541,7 @@ var Excel;
                 "left": this._L,
                 "top": this._T,
                 "visible": this._V,
-                "width": this._W
+                "width": this._W,
             }, {});
         };
         ChartLegendEntry.prototype.setMockData = function (data) {
@@ -38366,7 +40705,7 @@ var Excel;
         ChartLegendFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
                 "border": this._B,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         ChartLegendFormat.prototype.setMockData = function (data) {
@@ -38485,7 +40824,7 @@ var Excel;
             return _toJson(this, {
                 "labelStrategy": this._L,
                 "level": this._Le,
-                "projectionType": this._P
+                "projectionType": this._P,
             }, {});
         };
         ChartMapOptions.prototype.setMockData = function (data) {
@@ -38775,9 +41114,9 @@ var Excel;
                 "top": this._To,
                 "verticalAlignment": this._V,
                 "visible": this._Vi,
-                "width": this._W
+                "width": this._W,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartTitle.prototype.setMockData = function (data) {
@@ -38846,7 +41185,7 @@ var Excel;
         };
         ChartFormatString.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "font": this._F
+                "font": this._F,
             });
         };
         ChartFormatString.prototype.setMockData = function (data) {
@@ -38939,7 +41278,7 @@ var Excel;
         ChartTitleFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
                 "border": this._B,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         ChartTitleFormat.prototype.setMockData = function (data) {
@@ -39109,7 +41448,7 @@ var Excel;
             return _toJson(this, {
                 "color": this._C,
                 "lineStyle": this._L,
-                "weight": this._W
+                "weight": this._W,
             }, {});
         };
         ChartBorder.prototype.setMockData = function (data) {
@@ -39292,7 +41631,7 @@ var Excel;
                 "overflowValue": this._O,
                 "type": this._T,
                 "underflowValue": this._U,
-                "width": this._W
+                "width": this._W,
             }, {});
         };
         ChartBinOptions.prototype.setMockData = function (data) {
@@ -39443,7 +41782,7 @@ var Excel;
                 "showInnerPoints": this._S,
                 "showMeanLine": this._Sh,
                 "showMeanMarker": this._Sho,
-                "showOutlierPoints": this._Show
+                "showOutlierPoints": this._Show,
             }, {});
         };
         ChartBoxwhiskerOptions.prototype.setMockData = function (data) {
@@ -39567,7 +41906,7 @@ var Excel;
             return _toJson(this, {
                 "color": this._C,
                 "lineStyle": this._L,
-                "weight": this._W
+                "weight": this._W,
             }, {});
         };
         ChartLineFormat.prototype.setMockData = function (data) {
@@ -39657,7 +41996,7 @@ var Excel;
             },
             set: function (value) {
                 this._N = value;
-                _invokeSetProperty(this, "Name", value, 0);
+                _invokeSetProperty(this, "Name", value, _calculateApiFlags(2, "ExcelApiUndo", "1.5"));
             },
             enumerable: true,
             configurable: true
@@ -39669,7 +42008,7 @@ var Excel;
             },
             set: function (value) {
                 this._S = value;
-                _invokeSetProperty(this, "Size", value, 0);
+                _invokeSetProperty(this, "Size", value, _calculateApiFlags(2, "ExcelApiUndo", "1.5"));
             },
             enumerable: true,
             configurable: true
@@ -39734,7 +42073,7 @@ var Excel;
                 "italic": this._I,
                 "name": this._N,
                 "size": this._S,
-                "underline": this._U
+                "underline": this._U,
             }, {});
         };
         ChartFont.prototype.setMockData = function (data) {
@@ -39935,7 +42274,7 @@ var Excel;
         ChartTrendline.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        ChartTrendline.prototype["delete"] = function () {
+        ChartTrendline.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         ChartTrendline.prototype._handleResult = function (value) {
@@ -40005,10 +42344,10 @@ var Excel;
                 "polynomialOrder": this._P,
                 "showEquation": this._S,
                 "showRSquared": this._Sh,
-                "type": this._T
+                "type": this._T,
             }, {
                 "format": this._F,
-                "label": this._L
+                "label": this._L,
             });
         };
         ChartTrendline.prototype.setMockData = function (data) {
@@ -40151,7 +42490,7 @@ var Excel;
         };
         ChartTrendlineFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "line": this._L
+                "line": this._L,
             });
         };
         ChartTrendlineFormat.prototype.setMockData = function (data) {
@@ -40425,9 +42764,9 @@ var Excel;
                 "textOrientation": this._Te,
                 "top": this._To,
                 "verticalAlignment": this._V,
-                "width": this._W
+                "width": this._W,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartTrendlineLabel.prototype.setMockData = function (data) {
@@ -40519,7 +42858,7 @@ var Excel;
         ChartTrendlineLabelFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
                 "border": this._B,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         ChartTrendlineLabelFormat.prototype.setMockData = function (data) {
@@ -40752,9 +43091,9 @@ var Excel;
                 "left": this._L,
                 "position": this._P,
                 "top": this._T,
-                "width": this._W
+                "width": this._W,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         ChartPlotArea.prototype.setMockData = function (data) {
@@ -40835,7 +43174,7 @@ var Excel;
         };
         ChartPlotAreaFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
-                "border": this._B
+                "border": this._B,
             });
         };
         ChartPlotAreaFormat.prototype.setMockData = function (data) {
@@ -41079,7 +43418,7 @@ var Excel;
         Visual.prototype.changeDataSource = function (dataSourceType, dataSourceContent) {
             _invokeMethod(this, "ChangeDataSource", 0, [dataSourceType, dataSourceContent], 2, 0);
         };
-        Visual.prototype["delete"] = function () {
+        Visual.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 2, 0);
         };
         Visual.prototype.deserializeProperties = function (json) {
@@ -41175,7 +43514,7 @@ var Excel;
         Visual.prototype.toJSON = function () {
             return _toJson(this, {
                 "id": this._I,
-                "isSupportedInVisualTaskpane": this._Is
+                "isSupportedInVisualTaskpane": this._Is,
             }, {});
         };
         Visual.prototype.setMockData = function (data) {
@@ -41195,7 +43534,7 @@ var Excel;
                 targetId: value.targetId,
                 changeType: value.changeType,
                 payload: value.payload,
-                type: Excel.EventType.visualChange
+                type: Excel.EventType.visualChange,
             };
             return newArgs;
         }
@@ -41503,7 +43842,7 @@ var Excel;
                 "size": this._Si,
                 "stepSize": this._St,
                 "type": this._T,
-                "value": this._V
+                "value": this._V,
             }, {});
         };
         VisualProperty.prototype.setMockData = function (data) {
@@ -41761,7 +44100,7 @@ var Excel;
             return _toJson(this, {
                 "fields": this._F,
                 "matchCase": this._M,
-                "method": this._Me
+                "method": this._Me,
             }, {});
         };
         TableSort.prototype.setMockData = function (data) {
@@ -41867,7 +44206,7 @@ var Excel;
         };
         Filter.prototype.toJSON = function () {
             return _toJson(this, {
-                "criteria": this._C
+                "criteria": this._C,
             }, {});
         };
         Filter.prototype.setMockData = function (data) {
@@ -41934,6 +44273,10 @@ var Excel;
         AutoFilter.prototype.apply = function (range, columnIndex, criteria) {
             _invokeMethod(this, "Apply", 0, [range, columnIndex, criteria], 0, 0);
         };
+        AutoFilter.prototype.clearColumnCriteria = function (columnIndex) {
+            _throwIfApiNotSupported("AutoFilter.clearColumnCriteria", _defaultApiSetName, "1.14", _hostName);
+            _invokeMethod(this, "ClearColumnCriteria", 0, [columnIndex], 0, 0);
+        };
         AutoFilter.prototype.clearCriteria = function () {
             _invokeMethod(this, "ClearCriteria", 0, [], 0, 0);
         };
@@ -41979,7 +44322,7 @@ var Excel;
             return _toJson(this, {
                 "criteria": this._C,
                 "enabled": this._E,
-                "isDataFiltered": this._I
+                "isDataFiltered": this._I,
             }, {});
         };
         AutoFilter.prototype.setMockData = function (data) {
@@ -42078,10 +44421,10 @@ var Excel;
         };
         CultureInfo.prototype.toJSON = function () {
             return _toJson(this, {
-                "name": this._N
+                "name": this._N,
             }, {
                 "datetimeFormat": this._D,
-                "numberFormat": this._Nu
+                "numberFormat": this._Nu,
             });
         };
         CultureInfo.prototype.setMockData = function (data) {
@@ -42163,7 +44506,7 @@ var Excel;
         NumberFormatInfo.prototype.toJSON = function () {
             return _toJson(this, {
                 "numberDecimalSeparator": this._N,
-                "numberGroupSeparator": this._Nu
+                "numberGroupSeparator": this._Nu,
             }, {});
         };
         NumberFormatInfo.prototype.setMockData = function (data) {
@@ -42281,7 +44624,7 @@ var Excel;
                 "longDatePattern": this._L,
                 "longTimePattern": this._Lo,
                 "shortDatePattern": this._S,
-                "timeSeparator": this._T
+                "timeSeparator": this._T,
             }, {});
         };
         DatetimeFormatInfo.prototype.setMockData = function (data) {
@@ -42497,7 +44840,7 @@ var Excel;
             enumerable: true,
             configurable: true
         });
-        CustomXmlPart.prototype["delete"] = function () {
+        CustomXmlPart.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         CustomXmlPart.prototype.getXml = function () {
@@ -42541,7 +44884,7 @@ var Excel;
         CustomXmlPart.prototype.toJSON = function () {
             return _toJson(this, {
                 "id": this._I,
-                "namespaceUri": this._N
+                "namespaceUri": this._N,
             }, {});
         };
         CustomXmlPart.prototype.setMockData = function (data) {
@@ -42673,6 +45016,10 @@ var Excel;
         PivotTableScopedCollection.prototype.getFirst = function () {
             return _createMethodObject(Excel.PivotTable, this, "GetFirst", 1, [], false, true, null, 4);
         };
+        PivotTableScopedCollection.prototype.getFirstOrNullObject = function () {
+            _throwIfApiNotSupported("PivotTableScopedCollection.getFirstOrNullObject", _defaultApiSetName, "1.15", _hostName);
+            return _createMethodObject(Excel.PivotTable, this, "GetFirstOrNullObject", 1, [], false, false, null, 4);
+        };
         PivotTableScopedCollection.prototype.getItem = function (key) {
             return _createIndexerObject(Excel.PivotTable, this, [key]);
         };
@@ -42799,6 +45146,30 @@ var Excel;
         return PivotTableCollection;
     }(OfficeExtension.ClientObject));
     Excel.PivotTableCollection = PivotTableCollection;
+    var PivotTableCollectionCustom = (function () {
+        function PivotTableCollectionCustom() {
+        }
+        Object.defineProperty(PivotTableCollectionCustom.prototype, "_ParentObject", {
+            get: function () {
+                return this.m__ParentObject;
+            },
+            set: function (value) {
+                this.m__ParentObject = value;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PivotTableCollectionCustom.prototype, "_eventTargetId", {
+            get: function () {
+                return this._ParentObject ? this._ParentObject.id : OfficeExtension.Constants.eventWorkbookId;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return PivotTableCollectionCustom;
+    }());
+    Excel.PivotTableCollectionCustom = PivotTableCollectionCustom;
+    OfficeExtension.Utility.applyMixin(PivotTableCollection, PivotTableCollectionCustom);
     var _typePivotTable = "PivotTable";
     var PivotTable = (function (_super) {
         __extends(PivotTable, _super);
@@ -42814,21 +45185,21 @@ var Excel;
         });
         Object.defineProperty(PivotTable.prototype, "_scalarPropertyNames", {
             get: function () {
-                return ["name", "id", "useCustomSortLists", "enableDataValueEditing", "allowMultipleFiltersPerField"];
+                return ["name", "id", "useCustomSortLists", "enableDataValueEditing", "refreshOnOpen", "allowMultipleFiltersPerField"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(PivotTable.prototype, "_scalarPropertyOriginalNames", {
             get: function () {
-                return ["Name", "Id", "UseCustomSortLists", "EnableDataValueEditing", "AllowMultipleFiltersPerField"];
+                return ["Name", "Id", "UseCustomSortLists", "EnableDataValueEditing", "RefreshOnOpen", "AllowMultipleFiltersPerField"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(PivotTable.prototype, "_scalarPropertyUpdateable", {
             get: function () {
-                return [true, false, true, true, true];
+                return [true, false, true, true, true, true];
             },
             enumerable: true,
             configurable: true
@@ -42898,10 +45269,10 @@ var Excel;
         Object.defineProperty(PivotTable.prototype, "rowHierarchies", {
             get: function () {
                 _throwIfApiNotSupported("PivotTable.rowHierarchies", _defaultApiSetName, "1.8", _hostName);
-                if (!this._R) {
-                    this._R = _createPropertyObject(Excel.RowColumnPivotHierarchyCollection, this, "RowHierarchies", true, 4);
+                if (!this._Ro) {
+                    this._Ro = _createPropertyObject(Excel.RowColumnPivotHierarchyCollection, this, "RowHierarchies", true, 4);
                 }
-                return this._R;
+                return this._Ro;
             },
             enumerable: true,
             configurable: true
@@ -42963,6 +45334,19 @@ var Excel;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(PivotTable.prototype, "refreshOnOpen", {
+            get: function () {
+                _throwIfNotLoaded("refreshOnOpen", this._R, _typePivotTable, this._isNull);
+                _throwIfApiNotSupported("PivotTable.refreshOnOpen", _defaultApiSetName, "1.13", _hostName);
+                return this._R;
+            },
+            set: function (value) {
+                this._R = value;
+                _invokeSetProperty(this, "RefreshOnOpen", value, _calculateApiFlags(2, "ExcelApiUndo", "1.2"));
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(PivotTable.prototype, "useCustomSortLists", {
             get: function () {
                 _throwIfNotLoaded("useCustomSortLists", this._U, _typePivotTable, this._isNull);
@@ -42984,6 +45368,7 @@ var Excel;
                 "filterHierarchies",
                 "hierarchies",
                 "layout",
+                "refreshOnOpen",
                 "rowHierarchies",
                 "worksheet"
             ]);
@@ -42991,9 +45376,17 @@ var Excel;
         PivotTable.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        PivotTable.prototype["delete"] = function () {
+        PivotTable.prototype.delete = function () {
             _throwIfApiNotSupported("PivotTable.delete", _defaultApiSetName, "1.8", _hostName);
             _invokeMethod(this, "Delete", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.1"), 0);
+        };
+        PivotTable.prototype.getDataSourceString = function () {
+            _throwIfApiNotSupported("PivotTable.getDataSourceString", _defaultApiSetName, "1.15", _hostName);
+            return _invokeMethod(this, "GetDataSourceString", 1, [], 4, 0);
+        };
+        PivotTable.prototype.getDataSourceType = function () {
+            _throwIfApiNotSupported("PivotTable.getDataSourceType", _defaultApiSetName, "1.15", _hostName);
+            return _invokeMethod(this, "GetDataSourceType", 1, [], 4, 0);
         };
         PivotTable.prototype.refresh = function () {
             _invokeMethod(this, "Refresh", 0, [], _calculateApiFlags(2, "ExcelApiUndo", "1.1"), 0);
@@ -43015,6 +45408,9 @@ var Excel;
             }
             if (!_isUndefined(obj["Name"])) {
                 this._N = obj["Name"];
+            }
+            if (!_isUndefined(obj["RefreshOnOpen"])) {
+                this._R = obj["RefreshOnOpen"];
             }
             if (!_isUndefined(obj["UseCustomSortLists"])) {
                 this._U = obj["UseCustomSortLists"];
@@ -43045,13 +45441,13 @@ var Excel;
                 "enableDataValueEditing": this._E,
                 "id": this._I,
                 "name": this._N,
-                "useCustomSortLists": this._U
+                "useCustomSortLists": this._U,
             }, {
                 "columnHierarchies": this._C,
                 "dataHierarchies": this._D,
                 "filterHierarchies": this._F,
                 "hierarchies": this._H,
-                "rowHierarchies": this._R
+                "rowHierarchies": this._Ro,
             });
         };
         PivotTable.prototype.setMockData = function (data) {
@@ -43079,47 +45475,99 @@ var Excel;
         });
         Object.defineProperty(PivotLayout.prototype, "_scalarPropertyNames", {
             get: function () {
-                return ["showColumnGrandTotals", "showRowGrandTotals", "enableFieldList", "subtotalLocation", "layoutType", "autoFormat", "preserveFormatting"];
+                return ["showColumnGrandTotals", "showRowGrandTotals", "enableFieldList", "subtotalLocation", "layoutType", "autoFormat", "preserveFormatting", "altTextDescription", "altTextTitle", "emptyCellText", "fillEmptyCells", "showFieldHeaders"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(PivotLayout.prototype, "_scalarPropertyOriginalNames", {
             get: function () {
-                return ["ShowColumnGrandTotals", "ShowRowGrandTotals", "EnableFieldList", "SubtotalLocation", "LayoutType", "AutoFormat", "PreserveFormatting"];
+                return ["ShowColumnGrandTotals", "ShowRowGrandTotals", "EnableFieldList", "SubtotalLocation", "LayoutType", "AutoFormat", "PreserveFormatting", "AltTextDescription", "AltTextTitle", "EmptyCellText", "FillEmptyCells", "ShowFieldHeaders"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(PivotLayout.prototype, "_scalarPropertyUpdateable", {
             get: function () {
-                return [true, true, true, true, true, true, true];
+                return [true, true, true, true, true, true, true, true, true, true, true, true];
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PivotLayout.prototype, "altTextDescription", {
+            get: function () {
+                _throwIfNotLoaded("altTextDescription", this._A, _typePivotLayout, this._isNull);
+                _throwIfApiNotSupported("PivotLayout.altTextDescription", _defaultApiSetName, "1.13", _hostName);
+                return this._A;
+            },
+            set: function (value) {
+                this._A = value;
+                _invokeSetProperty(this, "AltTextDescription", value, _calculateApiFlags(2, "ExcelApiUndo", "1.2"));
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PivotLayout.prototype, "altTextTitle", {
+            get: function () {
+                _throwIfNotLoaded("altTextTitle", this._Al, _typePivotLayout, this._isNull);
+                _throwIfApiNotSupported("PivotLayout.altTextTitle", _defaultApiSetName, "1.13", _hostName);
+                return this._Al;
+            },
+            set: function (value) {
+                this._Al = value;
+                _invokeSetProperty(this, "AltTextTitle", value, _calculateApiFlags(2, "ExcelApiUndo", "1.2"));
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(PivotLayout.prototype, "autoFormat", {
             get: function () {
-                _throwIfNotLoaded("autoFormat", this._A, _typePivotLayout, this._isNull);
+                _throwIfNotLoaded("autoFormat", this._Au, _typePivotLayout, this._isNull);
                 _throwIfApiNotSupported("PivotLayout.autoFormat", _defaultApiSetName, "1.9", _hostName);
-                return this._A;
+                return this._Au;
             },
             set: function (value) {
-                this._A = value;
+                this._Au = value;
                 _invokeSetProperty(this, "AutoFormat", value, _calculateApiFlags(2, "ExcelApiUndo", "1.1"));
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PivotLayout.prototype, "emptyCellText", {
+            get: function () {
+                _throwIfNotLoaded("emptyCellText", this._E, _typePivotLayout, this._isNull);
+                _throwIfApiNotSupported("PivotLayout.emptyCellText", _defaultApiSetName, "1.13", _hostName);
+                return this._E;
+            },
+            set: function (value) {
+                this._E = value;
+                _invokeSetProperty(this, "EmptyCellText", value, _calculateApiFlags(2, "ExcelApiUndo", "1.2"));
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(PivotLayout.prototype, "enableFieldList", {
             get: function () {
-                _throwIfNotLoaded("enableFieldList", this._E, _typePivotLayout, this._isNull);
+                _throwIfNotLoaded("enableFieldList", this._En, _typePivotLayout, this._isNull);
                 _throwIfApiNotSupported("PivotLayout.enableFieldList", _defaultApiSetName, "1.10", _hostName);
-                return this._E;
+                return this._En;
             },
             set: function (value) {
-                this._E = value;
+                this._En = value;
                 _invokeSetProperty(this, "EnableFieldList", value, _calculateApiFlags(2, "ExcelApiUndo", "1.1"));
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PivotLayout.prototype, "fillEmptyCells", {
+            get: function () {
+                _throwIfNotLoaded("fillEmptyCells", this._F, _typePivotLayout, this._isNull);
+                _throwIfApiNotSupported("PivotLayout.fillEmptyCells", _defaultApiSetName, "1.13", _hostName);
+                return this._F;
+            },
+            set: function (value) {
+                this._F = value;
+                _invokeSetProperty(this, "FillEmptyCells", value, _calculateApiFlags(2, "ExcelApiUndo", "1.2"));
             },
             enumerable: true,
             configurable: true
@@ -43161,13 +45609,26 @@ var Excel;
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(PivotLayout.prototype, "showRowGrandTotals", {
+        Object.defineProperty(PivotLayout.prototype, "showFieldHeaders", {
             get: function () {
-                _throwIfNotLoaded("showRowGrandTotals", this._Sh, _typePivotLayout, this._isNull);
+                _throwIfNotLoaded("showFieldHeaders", this._Sh, _typePivotLayout, this._isNull);
+                _throwIfApiNotSupported("PivotLayout.showFieldHeaders", _defaultApiSetName, "1.13", _hostName);
                 return this._Sh;
             },
             set: function (value) {
                 this._Sh = value;
+                _invokeSetProperty(this, "ShowFieldHeaders", value, _calculateApiFlags(2, "ExcelApiUndo", "1.2"));
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(PivotLayout.prototype, "showRowGrandTotals", {
+            get: function () {
+                _throwIfNotLoaded("showRowGrandTotals", this._Sho, _typePivotLayout, this._isNull);
+                return this._Sho;
+            },
+            set: function (value) {
+                this._Sho = value;
                 _invokeSetProperty(this, "ShowRowGrandTotals", value, _calculateApiFlags(2, "ExcelApiUndo", "1.1"));
             },
             enumerable: true,
@@ -43186,10 +45647,20 @@ var Excel;
             configurable: true
         });
         PivotLayout.prototype.set = function (properties, options) {
-            this._recursivelySet(properties, options, ["showColumnGrandTotals", "showRowGrandTotals", "enableFieldList", "subtotalLocation", "layoutType", "autoFormat", "preserveFormatting"], [], []);
+            this._recursivelySet(properties, options, ["showColumnGrandTotals", "showRowGrandTotals", "enableFieldList", "subtotalLocation", "layoutType", "autoFormat", "preserveFormatting"], [], [
+                "altTextDescription",
+                "altTextTitle",
+                "emptyCellText",
+                "fillEmptyCells",
+                "showFieldHeaders"
+            ]);
         };
         PivotLayout.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
+        };
+        PivotLayout.prototype.displayBlankLineAfterEachItem = function (display) {
+            _throwIfApiNotSupported("PivotLayout.displayBlankLineAfterEachItem", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "DisplayBlankLineAfterEachItem", 0, [display], _calculateApiFlags(2, "ExcelApiUndo", "1.2"), 0);
         };
         PivotLayout.prototype.getColumnLabelRange = function () {
             var _a = _CC.PivotLayout_GetColumnLabelRange(this), handled = _a.handled, result = _a.result;
@@ -43238,6 +45709,10 @@ var Excel;
             }
             return _createMethodObject(Excel.Range, this, "GetRowLabelRange", 1, [], false, false, null, 0);
         };
+        PivotLayout.prototype.repeatAllItemLabels = function (repeatLabels) {
+            _throwIfApiNotSupported("PivotLayout.repeatAllItemLabels", _defaultApiSetName, "1.13", _hostName);
+            _invokeMethod(this, "RepeatAllItemLabels", 0, [repeatLabels], _calculateApiFlags(2, "ExcelApiUndo", "1.2"), 0);
+        };
         PivotLayout.prototype.setAutoSortOnCell = function (cell, sortBy) {
             _throwIfApiNotSupported("PivotLayout.setAutoSortOnCell", _defaultApiSetName, "1.9", _hostName);
             _invokeMethod(this, "SetAutoSortOnCell", 0, [cell, sortBy], _calculateApiFlags(2, "ExcelApiUndo", "1.1"), 0);
@@ -43248,11 +45723,23 @@ var Excel;
                 return;
             var obj = value;
             _fixObjectPathIfNecessary(this, obj);
+            if (!_isUndefined(obj["AltTextDescription"])) {
+                this._A = obj["AltTextDescription"];
+            }
+            if (!_isUndefined(obj["AltTextTitle"])) {
+                this._Al = obj["AltTextTitle"];
+            }
             if (!_isUndefined(obj["AutoFormat"])) {
-                this._A = obj["AutoFormat"];
+                this._Au = obj["AutoFormat"];
+            }
+            if (!_isUndefined(obj["EmptyCellText"])) {
+                this._E = obj["EmptyCellText"];
             }
             if (!_isUndefined(obj["EnableFieldList"])) {
-                this._E = obj["EnableFieldList"];
+                this._En = obj["EnableFieldList"];
+            }
+            if (!_isUndefined(obj["FillEmptyCells"])) {
+                this._F = obj["FillEmptyCells"];
             }
             if (!_isUndefined(obj["LayoutType"])) {
                 this._L = obj["LayoutType"];
@@ -43263,8 +45750,11 @@ var Excel;
             if (!_isUndefined(obj["ShowColumnGrandTotals"])) {
                 this._S = obj["ShowColumnGrandTotals"];
             }
+            if (!_isUndefined(obj["ShowFieldHeaders"])) {
+                this._Sh = obj["ShowFieldHeaders"];
+            }
             if (!_isUndefined(obj["ShowRowGrandTotals"])) {
-                this._Sh = obj["ShowRowGrandTotals"];
+                this._Sho = obj["ShowRowGrandTotals"];
             }
             if (!_isUndefined(obj["SubtotalLocation"])) {
                 this._Su = obj["SubtotalLocation"];
@@ -43282,13 +45772,13 @@ var Excel;
         };
         PivotLayout.prototype.toJSON = function () {
             return _toJson(this, {
-                "autoFormat": this._A,
-                "enableFieldList": this._E,
+                "autoFormat": this._Au,
+                "enableFieldList": this._En,
                 "layoutType": this._L,
                 "preserveFormatting": this._P,
                 "showColumnGrandTotals": this._S,
-                "showRowGrandTotals": this._Sh,
-                "subtotalLocation": this._Su
+                "showRowGrandTotals": this._Sho,
+                "subtotalLocation": this._Su,
             }, {});
         };
         PivotLayout.prototype.setMockData = function (data) {
@@ -43303,7 +45793,7 @@ var Excel;
     Excel.PivotLayout = PivotLayout;
     (function (_CC) {
         function PivotLayout_GetColumnLabelRange(thisObj) {
-            if (typeof (window) === "undefined" || !window.Office || !window.Office.context || !window.Office.context.requirements || !window.Office.context.requirements.isSetSupported("Pivot", "1.5")) {
+            if (!OfficeExtension.Utility.isSetSupported("Pivot", "1.5")) {
                 var result = _createMethodObject(Excel.Range, thisObj, "GetColumnLabelRange", 0, [], false, false, null, 0);
                 return { handled: true, result: result };
             }
@@ -43311,7 +45801,7 @@ var Excel;
         }
         _CC.PivotLayout_GetColumnLabelRange = PivotLayout_GetColumnLabelRange;
         function PivotLayout_GetDataBodyRange(thisObj) {
-            if (typeof (window) === "undefined" || !window.Office || !window.Office.context || !window.Office.context.requirements || !window.Office.context.requirements.isSetSupported("Pivot", "1.5")) {
+            if (!OfficeExtension.Utility.isSetSupported("Pivot", "1.5")) {
                 var result = _createMethodObject(Excel.Range, thisObj, "GetDataBodyRange", 0, [], false, false, null, 0);
                 return { handled: true, result: result };
             }
@@ -43319,7 +45809,7 @@ var Excel;
         }
         _CC.PivotLayout_GetDataBodyRange = PivotLayout_GetDataBodyRange;
         function PivotLayout_GetDataHierarchy(thisObj, cell) {
-            if (typeof (window) === "undefined" || !window.Office || !window.Office.context || !window.Office.context.requirements || !window.Office.context.requirements.isSetSupported("Pivot", "1.5")) {
+            if (!OfficeExtension.Utility.isSetSupported("Pivot", "1.5")) {
                 _throwIfApiNotSupported("PivotLayout.getDataHierarchy", _defaultApiSetName, "1.9", _hostName);
                 var result = _createMethodObject(Excel.DataPivotHierarchy, thisObj, "GetDataHierarchy", 0, [cell], false, false, null, 0);
                 return { handled: true, result: result };
@@ -43328,7 +45818,7 @@ var Excel;
         }
         _CC.PivotLayout_GetDataHierarchy = PivotLayout_GetDataHierarchy;
         function PivotLayout_GetFilterAxisRange(thisObj) {
-            if (typeof (window) === "undefined" || !window.Office || !window.Office.context || !window.Office.context.requirements || !window.Office.context.requirements.isSetSupported("Pivot", "1.5")) {
+            if (!OfficeExtension.Utility.isSetSupported("Pivot", "1.5")) {
                 var result = _createMethodObject(Excel.Range, thisObj, "GetFilterAxisRange", 0, [], false, false, null, 0);
                 return { handled: true, result: result };
             }
@@ -43336,7 +45826,7 @@ var Excel;
         }
         _CC.PivotLayout_GetFilterAxisRange = PivotLayout_GetFilterAxisRange;
         function PivotLayout_GetRange(thisObj) {
-            if (typeof (window) === "undefined" || !window.Office || !window.Office.context || !window.Office.context.requirements || !window.Office.context.requirements.isSetSupported("Pivot", "1.5")) {
+            if (!OfficeExtension.Utility.isSetSupported("Pivot", "1.5")) {
                 var result = _createMethodObject(Excel.Range, thisObj, "GetRange", 0, [], false, false, null, 0);
                 return { handled: true, result: result };
             }
@@ -43344,7 +45834,7 @@ var Excel;
         }
         _CC.PivotLayout_GetRange = PivotLayout_GetRange;
         function PivotLayout_GetRowLabelRange(thisObj) {
-            if (typeof (window) === "undefined" || !window.Office || !window.Office.context || !window.Office.context.requirements || !window.Office.context.requirements.isSetSupported("Pivot", "1.5")) {
+            if (!OfficeExtension.Utility.isSetSupported("Pivot", "1.5")) {
                 var result = _createMethodObject(Excel.Range, thisObj, "GetRowLabelRange", 0, [], false, false, null, 0);
                 return { handled: true, result: result };
             }
@@ -43541,9 +46031,9 @@ var Excel;
         PivotHierarchy.prototype.toJSON = function () {
             return _toJson(this, {
                 "id": this._I,
-                "name": this._N
+                "name": this._N,
             }, {
-                "fields": this._F
+                "fields": this._F,
             });
         };
         PivotHierarchy.prototype.setMockData = function (data) {
@@ -43770,9 +46260,9 @@ var Excel;
             return _toJson(this, {
                 "id": this._I,
                 "name": this._N,
-                "position": this._P
+                "position": this._P,
             }, {
-                "fields": this._F
+                "fields": this._F,
             });
         };
         RowColumnPivotHierarchy.prototype.setMockData = function (data) {
@@ -44015,9 +46505,9 @@ var Excel;
                 "enableMultipleFilterItems": this._E,
                 "id": this._I,
                 "name": this._N,
-                "position": this._P
+                "position": this._P,
             }, {
-                "fields": this._F
+                "fields": this._F,
             });
         };
         FilterPivotHierarchy.prototype.setMockData = function (data) {
@@ -44290,9 +46780,9 @@ var Excel;
                 "numberFormat": this._Nu,
                 "position": this._P,
                 "showAs": this._S,
-                "summarizeBy": this._Su
+                "summarizeBy": this._Su,
             }, {
-                "field": this._F
+                "field": this._F,
             });
         };
         DataPivotHierarchy.prototype.setMockData = function (data) {
@@ -44557,9 +47047,9 @@ var Excel;
                 "id": this._I,
                 "name": this._N,
                 "showAllItems": this._S,
-                "subtotals": this._Su
+                "subtotals": this._Su,
             }, {
-                "items": this._It
+                "items": this._It,
             });
         };
         PivotField.prototype.setMockData = function (data) {
@@ -44783,7 +47273,7 @@ var Excel;
                 "id": this._I,
                 "isExpanded": this._Is,
                 "name": this._N,
-                "visible": this._V
+                "visible": this._V,
             }, {});
         };
         PivotItem.prototype.setMockData = function (data) {
@@ -44922,7 +47412,7 @@ var Excel;
         WorksheetCustomProperty.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        WorksheetCustomProperty.prototype["delete"] = function () {
+        WorksheetCustomProperty.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         WorksheetCustomProperty.prototype._handleResult = function (value) {
@@ -44963,7 +47453,7 @@ var Excel;
         WorksheetCustomProperty.prototype.toJSON = function () {
             return _toJson(this, {
                 "key": this._K,
-                "value": this._V
+                "value": this._V,
             }, {});
         };
         WorksheetCustomProperty.prototype.setMockData = function (data) {
@@ -45305,9 +47795,9 @@ var Excel;
                 "manager": this._M,
                 "revisionNumber": this._R,
                 "subject": this._S,
-                "title": this._T
+                "title": this._T,
             }, {
-                "custom": this._Cu
+                "custom": this._Cu,
             });
         };
         DocumentProperties.prototype.setMockData = function (data) {
@@ -45388,7 +47878,7 @@ var Excel;
         CustomProperty.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        CustomProperty.prototype["delete"] = function () {
+        CustomProperty.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         CustomProperty.prototype._handleResult = function (value) {
@@ -45421,7 +47911,7 @@ var Excel;
             return _toJson(this, {
                 "key": this._K,
                 "type": this._T,
-                "value": this._V
+                "value": this._V,
             }, {});
         };
         CustomProperty.prototype.setMockData = function (data) {
@@ -45556,6 +48046,10 @@ var Excel;
         };
         ConditionalFormatCollection.prototype.getItemAt = function (index) {
             return _createMethodObject(Excel.ConditionalFormat, this, "GetItemAt", 1, [index], false, false, null, 4);
+        };
+        ConditionalFormatCollection.prototype.getItemOrNullObject = function (id) {
+            _throwIfApiNotSupported("ConditionalFormatCollection.getItemOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.ConditionalFormat, this, "GetItemOrNullObject", 1, [id], false, false, null, 4);
         };
         ConditionalFormatCollection.prototype._handleResult = function (value) {
             _super.prototype._handleResult.call(this, value);
@@ -45841,7 +48335,7 @@ var Excel;
         ConditionalFormat.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        ConditionalFormat.prototype["delete"] = function () {
+        ConditionalFormat.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         ConditionalFormat.prototype.getRange = function () {
@@ -45898,7 +48392,7 @@ var Excel;
                 "id": this._Id0,
                 "priority": this._Pri,
                 "stopIfTrue": this._S,
-                "type": this._Ty
+                "type": this._Ty,
             }, {
                 "cellValue": this._C,
                 "cellValueOrNullObject": this._Ce,
@@ -45915,7 +48409,7 @@ var Excel;
                 "textComparison": this._T,
                 "textComparisonOrNullObject": this._Te,
                 "topBottom": this._To,
-                "topBottomOrNullObject": this._Top
+                "topBottomOrNullObject": this._Top,
             });
         };
         ConditionalFormat.prototype.setMockData = function (data) {
@@ -46110,10 +48604,10 @@ var Excel;
                 "barDirection": this._B,
                 "lowerBoundRule": this._L,
                 "showDataBarOnly": this._S,
-                "upperBoundRule": this._U
+                "upperBoundRule": this._U,
             }, {
                 "negativeFormat": this._N,
-                "positiveFormat": this._P
+                "positiveFormat": this._P,
             });
         };
         DataBarConditionalFormat.prototype.setMockData = function (data) {
@@ -46232,7 +48726,7 @@ var Excel;
             return _toJson(this, {
                 "borderColor": this._B,
                 "fillColor": this._F,
-                "gradientFill": this._G
+                "gradientFill": this._G,
             }, {});
         };
         ConditionalDataBarPositiveFormat.prototype.setMockData = function (data) {
@@ -46367,7 +48861,7 @@ var Excel;
                 "borderColor": this._B,
                 "fillColor": this._F,
                 "matchPositiveBorderColor": this._M,
-                "matchPositiveFillColor": this._Ma
+                "matchPositiveFillColor": this._Ma,
             }, {});
         };
         ConditionalDataBarNegativeFormat.prototype.setMockData = function (data) {
@@ -46447,7 +48941,7 @@ var Excel;
         CustomConditionalFormat.prototype.toJSON = function () {
             return _toJson(this, {}, {
                 "format": this._F,
-                "rule": this._R
+                "rule": this._R,
             });
         };
         CustomConditionalFormat.prototype.setMockData = function (data) {
@@ -46566,7 +49060,7 @@ var Excel;
             return _toJson(this, {
                 "formula": this._F,
                 "formulaLocal": this._Fo,
-                "formulaR1C1": this._For
+                "formulaR1C1": this._For,
             }, {});
         };
         ConditionalFormatRule.prototype.setMockData = function (data) {
@@ -46701,7 +49195,7 @@ var Excel;
                 "criteria": this._C,
                 "reverseIconOrder": this._R,
                 "showIconOnly": this._S,
-                "style": this._St
+                "style": this._St,
             }, {});
         };
         IconSetConditionalFormat.prototype.setMockData = function (data) {
@@ -46800,7 +49294,7 @@ var Excel;
         ColorScaleConditionalFormat.prototype.toJSON = function () {
             return _toJson(this, {
                 "criteria": this._C,
-                "threeColorScale": this._T
+                "threeColorScale": this._T,
             }, {});
         };
         ColorScaleConditionalFormat.prototype.setMockData = function (data) {
@@ -46905,9 +49399,9 @@ var Excel;
         };
         TopBottomConditionalFormat.prototype.toJSON = function () {
             return _toJson(this, {
-                "rule": this._R
+                "rule": this._R,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         TopBottomConditionalFormat.prototype.setMockData = function (data) {
@@ -47012,9 +49506,9 @@ var Excel;
         };
         PresetCriteriaConditionalFormat.prototype.toJSON = function () {
             return _toJson(this, {
-                "rule": this._R
+                "rule": this._R,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         PresetCriteriaConditionalFormat.prototype.setMockData = function (data) {
@@ -47119,9 +49613,9 @@ var Excel;
         };
         TextConditionalFormat.prototype.toJSON = function () {
             return _toJson(this, {
-                "rule": this._R
+                "rule": this._R,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         TextConditionalFormat.prototype.setMockData = function (data) {
@@ -47226,9 +49720,9 @@ var Excel;
         };
         CellValueConditionalFormat.prototype.toJSON = function () {
             return _toJson(this, {
-                "rule": this._R
+                "rule": this._R,
             }, {
-                "format": this._F
+                "format": this._F,
             });
         };
         CellValueConditionalFormat.prototype.setMockData = function (data) {
@@ -47355,11 +49849,11 @@ var Excel;
         };
         ConditionalRangeFormat.prototype.toJSON = function () {
             return _toJson(this, {
-                "numberFormat": this._N
+                "numberFormat": this._N,
             }, {
                 "borders": this._B,
                 "fill": this._F,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         ConditionalRangeFormat.prototype.setMockData = function (data) {
@@ -47513,7 +50007,7 @@ var Excel;
                 "color": this._C,
                 "italic": this._I,
                 "strikethrough": this._S,
-                "underline": this._U
+                "underline": this._U,
             }, {});
         };
         ConditionalRangeFont.prototype.setMockData = function (data) {
@@ -47603,7 +50097,7 @@ var Excel;
         };
         ConditionalRangeFill.prototype.toJSON = function () {
             return _toJson(this, {
-                "color": this._C
+                "color": this._C,
             }, {});
         };
         ConditionalRangeFill.prototype.setMockData = function (data) {
@@ -47718,7 +50212,7 @@ var Excel;
             return _toJson(this, {
                 "color": this._C,
                 "sideIndex": this._S,
-                "style": this._St
+                "style": this._St,
             }, {});
         };
         ConditionalRangeBorder.prototype.setMockData = function (data) {
@@ -47867,12 +50361,12 @@ var Excel;
         };
         ConditionalRangeBorderCollection.prototype.toJSON = function () {
             return _toJson(this, {
-                "count": this._C
+                "count": this._C,
             }, {
                 "bottom": this._B,
                 "left": this._L,
                 "right": this._R,
-                "top": this._T
+                "top": this._T,
             }, this.m__items);
         };
         ConditionalRangeBorderCollection.prototype.setMockData = function (data) {
@@ -48292,7 +50786,7 @@ var Excel;
         Style.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        Style.prototype["delete"] = function () {
+        Style.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Style.prototype._handleResult = function (value) {
@@ -48394,11 +50888,11 @@ var Excel;
                 "shrinkToFit": this._S,
                 "textOrientation": this.m_textOrientation,
                 "verticalAlignment": this._V,
-                "wrapText": this._W
+                "wrapText": this._W,
             }, {
                 "borders": this._B,
                 "fill": this._F,
-                "font": this._Fo
+                "font": this._Fo,
             });
         };
         Style.prototype.setMockData = function (data) {
@@ -48463,6 +50957,10 @@ var Excel;
         StyleCollection.prototype.getItemAt = function (index) {
             _throwIfApiNotSupported("StyleCollection.getItemAt", _defaultApiSetName, "1.9", _hostName);
             return _createMethodObject(Excel.Style, this, "GetItemAt", 1, [index], false, false, null, 4);
+        };
+        StyleCollection.prototype.getItemOrNullObject = function (name) {
+            _throwIfApiNotSupported("StyleCollection.getItemOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.Style, this, "GetItemOrNullObject", 1, [name], false, false, null, 4);
         };
         StyleCollection.prototype._handleResult = function (value) {
             _super.prototype._handleResult.call(this, value);
@@ -48652,7 +51150,7 @@ var Excel;
         TableStyle.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        TableStyle.prototype["delete"] = function () {
+        TableStyle.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         TableStyle.prototype.duplicate = function () {
@@ -48696,7 +51194,7 @@ var Excel;
         TableStyle.prototype.toJSON = function () {
             return _toJson(this, {
                 "name": this._N,
-                "readOnly": this._R
+                "readOnly": this._R,
             }, {});
         };
         TableStyle.prototype.setMockData = function (data) {
@@ -48860,7 +51358,7 @@ var Excel;
         PivotTableStyle.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        PivotTableStyle.prototype["delete"] = function () {
+        PivotTableStyle.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         PivotTableStyle.prototype.duplicate = function () {
@@ -48904,7 +51402,7 @@ var Excel;
         PivotTableStyle.prototype.toJSON = function () {
             return _toJson(this, {
                 "name": this._N,
-                "readOnly": this._R
+                "readOnly": this._R,
             }, {});
         };
         PivotTableStyle.prototype.setMockData = function (data) {
@@ -49068,7 +51566,7 @@ var Excel;
         SlicerStyle.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        SlicerStyle.prototype["delete"] = function () {
+        SlicerStyle.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         SlicerStyle.prototype.duplicate = function () {
@@ -49112,7 +51610,7 @@ var Excel;
         SlicerStyle.prototype.toJSON = function () {
             return _toJson(this, {
                 "name": this._N,
-                "readOnly": this._R
+                "readOnly": this._R,
             }, {});
         };
         SlicerStyle.prototype.setMockData = function (data) {
@@ -49276,7 +51774,7 @@ var Excel;
         TimelineStyle.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        TimelineStyle.prototype["delete"] = function () {
+        TimelineStyle.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         TimelineStyle.prototype.duplicate = function () {
@@ -49320,7 +51818,7 @@ var Excel;
         TimelineStyle.prototype.toJSON = function () {
             return _toJson(this, {
                 "name": this._N,
-                "readOnly": this._R
+                "readOnly": this._R,
             }, {});
         };
         TimelineStyle.prototype.setMockData = function (data) {
@@ -49977,9 +52475,9 @@ var Excel;
                 "printOrder": this._PrintO,
                 "rightMargin": this._R,
                 "topMargin": this._T,
-                "zoom": this._Z
+                "zoom": this._Z,
             }, {
-                "headersFooters": this._He
+                "headersFooters": this._He,
             });
         };
         PageLayout.prototype.setMockData = function (data) {
@@ -50146,7 +52644,7 @@ var Excel;
                 "leftFooter": this._L,
                 "leftHeader": this._Le,
                 "rightFooter": this._R,
-                "rightHeader": this._Ri
+                "rightHeader": this._Ri,
             }, {});
         };
         HeaderFooter.prototype.setMockData = function (data) {
@@ -50313,12 +52811,12 @@ var Excel;
             return _toJson(this, {
                 "state": this._S,
                 "useSheetMargins": this._U,
-                "useSheetScale": this._Us
+                "useSheetScale": this._Us,
             }, {
                 "defaultForAllPages": this._D,
                 "evenPages": this._E,
                 "firstPage": this._F,
-                "oddPages": this._O
+                "oddPages": this._O,
             });
         };
         HeaderFooterGroup.prototype.setMockData = function (data) {
@@ -50382,7 +52880,7 @@ var Excel;
             enumerable: true,
             configurable: true
         });
-        PageBreak.prototype["delete"] = function () {
+        PageBreak.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         PageBreak.prototype.getCellAfterBreak = function () {
@@ -50426,7 +52924,7 @@ var Excel;
         PageBreak.prototype.toJSON = function () {
             return _toJson(this, {
                 "columnIndex": this._C,
-                "rowIndex": this._R
+                "rowIndex": this._R,
             }, {});
         };
         PageBreak.prototype.setMockData = function (data) {
@@ -50737,6 +53235,10 @@ var Excel;
         CommentCollection.prototype.getItemByReplyId = function (replyId) {
             return _createMethodObject(Excel.Comment, this, "GetItemByReplyId", 1, [replyId], false, false, null, 4);
         };
+        CommentCollection.prototype.getItemOrNullObject = function (commentId) {
+            _throwIfApiNotSupported("CommentCollection.getItemOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.Comment, this, "GetItemOrNullObject", 1, [commentId], false, false, null, 4);
+        };
         CommentCollection.prototype._RegisterAddedEvent = function () {
             _throwIfApiNotSupported("CommentCollection._RegisterAddedEvent", _defaultApiSetName, "1.12", _hostName);
             _invokeMethod(this, "_RegisterAddedEvent", 1, [], 0, 0);
@@ -51044,7 +53546,7 @@ var Excel;
         Comment.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        Comment.prototype["delete"] = function () {
+        Comment.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Comment.prototype.getLocation = function () {
@@ -51124,9 +53626,9 @@ var Excel;
                 "id": this._I,
                 "mentions": this._M,
                 "resolved": this._Re,
-                "richContent": this._Ri
+                "richContent": this._Ri,
             }, {
-                "replies": this._R
+                "replies": this._R,
             });
         };
         Comment.prototype.setMockData = function (data) {
@@ -51178,6 +53680,10 @@ var Excel;
         };
         CommentReplyCollection.prototype.getItemAt = function (index) {
             return _createMethodObject(Excel.CommentReply, this, "GetItemAt", 1, [index], false, false, null, 4);
+        };
+        CommentReplyCollection.prototype.getItemOrNullObject = function (commentReplyId) {
+            _throwIfApiNotSupported("CommentReplyCollection.getItemOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.CommentReply, this, "GetItemOrNullObject", 1, [commentReplyId], false, false, null, 4);
         };
         CommentReplyCollection.prototype._handleResult = function (value) {
             _super.prototype._handleResult.call(this, value);
@@ -51336,7 +53842,7 @@ var Excel;
         CommentReply.prototype.update = function (properties) {
             this._recursivelyUpdate(properties);
         };
-        CommentReply.prototype["delete"] = function () {
+        CommentReply.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         CommentReply.prototype.getLocation = function () {
@@ -51418,7 +53924,7 @@ var Excel;
                 "id": this._I,
                 "mentions": this._M,
                 "resolved": this._R,
-                "richContent": this._Ri
+                "richContent": this._Ri,
             }, {});
         };
         CommentReply.prototype.setMockData = function (data) {
@@ -51483,6 +53989,10 @@ var Excel;
         ShapeCollection.prototype.getItemAt = function (index) {
             return _createMethodObject(Excel.Shape, this, "GetItemAt", 1, [index], false, false, null, 4);
         };
+        ShapeCollection.prototype.getItemOrNullObject = function (key) {
+            _throwIfApiNotSupported("ShapeCollection.getItemOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.Shape, this, "GetItemOrNullObject", 1, [key], false, false, null, 4);
+        };
         ShapeCollection.prototype._GetItem = function (shapeId) {
             return _createIndexerObject(Excel.Shape, this, [shapeId]);
         };
@@ -51523,6 +54033,23 @@ var Excel;
         return ShapeCollection;
     }(OfficeExtension.ClientObject));
     Excel.ShapeCollection = ShapeCollection;
+    var ShapeCollectionCustom = (function () {
+        function ShapeCollectionCustom() {
+        }
+        Object.defineProperty(ShapeCollectionCustom.prototype, "_ParentObject", {
+            get: function () {
+                return this.m__ParentObject;
+            },
+            set: function (value) {
+                this.m__ParentObject = value;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return ShapeCollectionCustom;
+    }());
+    Excel.ShapeCollectionCustom = ShapeCollectionCustom;
+    OfficeExtension.Utility.applyMixin(ShapeCollection, ShapeCollectionCustom);
     var _typeShape = "Shape";
     var Shape = (function (_super) {
         __extends(Shape, _super);
@@ -51538,21 +54065,21 @@ var Excel;
         });
         Object.defineProperty(Shape.prototype, "_scalarPropertyNames", {
             get: function () {
-                return ["id", "name", "left", "top", "width", "height", "rotation", "zOrderPosition", "altTextTitle", "altTextDescription", "type", "lockAspectRatio", "placement", "geometricShapeType", "visible", "level", "connectionSiteCount"];
+                return ["id", "name", "left", "top", "width", "height", "rotation", "zOrderPosition", "altTextTitle", "altTextDescription", "type", "lockAspectRatio", "placement", "geometricShapeType", "visible", "level", "connectionSiteCount", "displayName"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(Shape.prototype, "_scalarPropertyOriginalNames", {
             get: function () {
-                return ["Id", "Name", "Left", "Top", "Width", "Height", "Rotation", "ZOrderPosition", "AltTextTitle", "AltTextDescription", "Type", "LockAspectRatio", "Placement", "GeometricShapeType", "Visible", "Level", "ConnectionSiteCount"];
+                return ["Id", "Name", "Left", "Top", "Width", "Height", "Rotation", "ZOrderPosition", "AltTextTitle", "AltTextDescription", "Type", "LockAspectRatio", "Placement", "GeometricShapeType", "Visible", "Level", "ConnectionSiteCount", "DisplayName"];
             },
             enumerable: true,
             configurable: true
         });
         Object.defineProperty(Shape.prototype, "_scalarPropertyUpdateable", {
             get: function () {
-                return [false, true, true, true, true, true, true, false, true, true, false, true, true, true, true, false, false];
+                return [false, true, true, true, true, true, true, false, true, true, false, true, true, true, true, false, false, false];
             },
             enumerable: true,
             configurable: true
@@ -51672,6 +54199,15 @@ var Excel;
             get: function () {
                 _throwIfNotLoaded("connectionSiteCount", this._C, _typeShape, this._isNull);
                 return this._C;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Shape.prototype, "displayName", {
+            get: function () {
+                _throwIfNotLoaded("displayName", this._D, _typeShape, this._isNull);
+                _throwIfApiNotSupported("Shape.displayName", _defaultApiSetName, "1.15", _hostName);
+                return this._D;
             },
             enumerable: true,
             configurable: true
@@ -51846,7 +54382,7 @@ var Excel;
             _throwIfApiNotSupported("Shape.copyTo", _defaultApiSetName, "1.10", _hostName);
             return _createMethodObject(Excel.Shape, this, "CopyTo", 0, [destinationSheet], false, true, "_GetShapeById", 0);
         };
-        Shape.prototype["delete"] = function () {
+        Shape.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Shape.prototype.getAsImage = function (format) {
@@ -51871,6 +54407,7 @@ var Excel;
             _invokeMethod(this, "SetZOrder", 0, [position], 0, 0);
         };
         Shape.prototype._GetShapeById = function (bstrReferenceId) {
+            _throwIfApiNotSupported("Shape._GetShapeById", _defaultApiSetName, "1.10", _hostName);
             return _createMethodObject(Excel.Shape, this, "_GetShapeById", 1, [bstrReferenceId], false, false, null, 4);
         };
         Shape.prototype._RegisterActivatedEvent = function () {
@@ -51899,6 +54436,9 @@ var Excel;
             }
             if (!_isUndefined(obj["ConnectionSiteCount"])) {
                 this._C = obj["ConnectionSiteCount"];
+            }
+            if (!_isUndefined(obj["DisplayName"])) {
+                this._D = obj["DisplayName"];
             }
             if (!_isUndefined(obj["GeometricShapeType"])) {
                 this._Ge = obj["GeometricShapeType"];
@@ -52016,6 +54556,7 @@ var Excel;
                 "altTextDescription": this._A,
                 "altTextTitle": this._Al,
                 "connectionSiteCount": this._C,
+                "displayName": this._D,
                 "geometricShapeType": this._Ge,
                 "height": this._H,
                 "id": this._I,
@@ -52029,10 +54570,10 @@ var Excel;
                 "type": this._Ty,
                 "visible": this._V,
                 "width": this._W,
-                "zOrderPosition": this._Z
+                "zOrderPosition": this._Z,
             }, {
                 "fill": this._F,
-                "lineFormat": this._Lin
+                "lineFormat": this._Lin,
             });
         };
         Shape.prototype.setMockData = function (data) {
@@ -52129,7 +54670,7 @@ var Excel;
         };
         GeometricShape.prototype.toJSON = function () {
             return _toJson(this, {
-                "id": this._I
+                "id": this._I,
             }, {});
         };
         GeometricShape.prototype.setMockData = function (data) {
@@ -52238,7 +54779,7 @@ var Excel;
         Image.prototype.toJSON = function () {
             return _toJson(this, {
                 "format": this._f,
-                "id": this._I
+                "id": this._I,
             }, {});
         };
         Image.prototype.setMockData = function (data) {
@@ -52348,9 +54889,9 @@ var Excel;
         };
         ShapeGroup.prototype.toJSON = function () {
             return _toJson(this, {
-                "id": this._I
+                "id": this._I,
             }, {
-                "shapes": this._Sh
+                "shapes": this._Sh,
             });
         };
         ShapeGroup.prototype.setMockData = function (data) {
@@ -52399,6 +54940,10 @@ var Excel;
         };
         GroupShapeCollection.prototype.getItemAt = function (index) {
             return _createMethodObject(Excel.Shape, this, "GetItemAt", 1, [index], false, false, null, 4);
+        };
+        GroupShapeCollection.prototype.getItemOrNullObject = function (key) {
+            _throwIfApiNotSupported("GroupShapeCollection.getItemOrNullObject", _defaultApiSetName, "1.14", _hostName);
+            return _createMethodObject(Excel.Shape, this, "GetItemOrNullObject", 1, [key], false, false, null, 4);
         };
         GroupShapeCollection.prototype._GetItem = function (shapeId) {
             return _createIndexerObject(Excel.Shape, this, [shapeId]);
@@ -52733,7 +55278,7 @@ var Excel;
                 "endConnectedSite": this._EndCo,
                 "id": this._I,
                 "isBeginConnected": this._Is,
-                "isEndConnected": this._IsE
+                "isEndConnected": this._IsE,
             }, {});
         };
         Line.prototype.setMockData = function (data) {
@@ -52854,7 +55399,7 @@ var Excel;
             return _toJson(this, {
                 "foregroundColor": this._F,
                 "transparency": this._T,
-                "type": this._Ty
+                "type": this._Ty,
             }, {});
         };
         ShapeFill.prototype.setMockData = function (data) {
@@ -53021,7 +55566,7 @@ var Excel;
                 "style": this._S,
                 "transparency": this._T,
                 "visible": this._V,
-                "weight": this._W
+                "weight": this._W,
             }, {});
         };
         ShapeLineFormat.prototype.setMockData = function (data) {
@@ -53303,7 +55848,7 @@ var Excel;
                 "rightMargin": this._Ri,
                 "topMargin": this._To,
                 "verticalAlignment": this._V,
-                "verticalOverflow": this._Ve
+                "verticalOverflow": this._Ve,
             }, {});
         };
         TextFrame.prototype.setMockData = function (data) {
@@ -53411,9 +55956,9 @@ var Excel;
         };
         TextRange.prototype.toJSON = function () {
             return _toJson(this, {
-                "text": this._T
+                "text": this._T,
             }, {
-                "font": this._F
+                "font": this._F,
             });
         };
         TextRange.prototype.setMockData = function (data) {
@@ -53580,7 +56125,7 @@ var Excel;
                 "italic": this._I,
                 "name": this._N,
                 "size": this._S,
-                "underline": this._U
+                "underline": this._U,
             }, {});
         };
         ShapeFont.prototype.setMockData = function (data) {
@@ -53777,7 +56322,7 @@ var Excel;
         Slicer.prototype.clearFilters = function () {
             _invokeMethod(this, "ClearFilters", 0, [], 0, 0);
         };
-        Slicer.prototype["delete"] = function () {
+        Slicer.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         Slicer.prototype.getSelectedItems = function () {
@@ -53854,10 +56399,10 @@ var Excel;
                 "sortBy": this._So,
                 "style": this._St,
                 "top": this._T,
-                "width": this._W
+                "width": this._W,
             }, {
                 "slicerItems": this._S,
-                "worksheet": this._Wo
+                "worksheet": this._Wo,
             });
         };
         Slicer.prototype.setMockData = function (data) {
@@ -54060,7 +56605,7 @@ var Excel;
                 "hasData": this._H,
                 "isSelected": this._I,
                 "key": this._K,
-                "name": this._N
+                "name": this._N,
             }, {});
         };
         SlicerItem.prototype.setMockData = function (data) {
@@ -54259,7 +56804,7 @@ var Excel;
         });
         Ribbon.prototype.toJSON = function () {
             return _toJson(this, {
-                "activeTab": this._A
+                "activeTab": this._A,
             }, {});
         };
         Ribbon.prototype.setMockData = function (data) {
@@ -54531,6 +57076,13 @@ var Excel;
         ChartSeriesBy["columns"] = "Columns";
         ChartSeriesBy["rows"] = "Rows";
     })(ChartSeriesBy = Excel.ChartSeriesBy || (Excel.ChartSeriesBy = {}));
+    var ChartDataSourceType;
+    (function (ChartDataSourceType) {
+        ChartDataSourceType["localRange"] = "LocalRange";
+        ChartDataSourceType["externalRange"] = "ExternalRange";
+        ChartDataSourceType["list"] = "List";
+        ChartDataSourceType["unknown"] = "Unknown";
+    })(ChartDataSourceType = Excel.ChartDataSourceType || (Excel.ChartDataSourceType = {}));
     var ChartTextHorizontalAlignment;
     (function (ChartTextHorizontalAlignment) {
         ChartTextHorizontalAlignment["center"] = "Center";
@@ -55237,6 +57789,11 @@ var Excel;
         SheetVisibility["hidden"] = "Hidden";
         SheetVisibility["veryHidden"] = "VeryHidden";
     })(SheetVisibility = Excel.SheetVisibility || (Excel.SheetVisibility = {}));
+    var EventTriggerSource;
+    (function (EventTriggerSource) {
+        EventTriggerSource["unknown"] = "Unknown";
+        EventTriggerSource["thisLocalAddin"] = "ThisLocalAddin";
+    })(EventTriggerSource = Excel.EventTriggerSource || (Excel.EventTriggerSource = {}));
     var RangeValueType;
     (function (RangeValueType) {
         RangeValueType["unknown"] = "Unknown";
@@ -55290,6 +57847,14 @@ var Excel;
         VerticalAlignment["justify"] = "Justify";
         VerticalAlignment["distributed"] = "Distributed";
     })(VerticalAlignment = Excel.VerticalAlignment || (Excel.VerticalAlignment = {}));
+    var InsertDeleteCellsShiftDirection;
+    (function (InsertDeleteCellsShiftDirection) {
+        InsertDeleteCellsShiftDirection["none"] = "None";
+        InsertDeleteCellsShiftDirection["shiftCellLeft"] = "ShiftCellLeft";
+        InsertDeleteCellsShiftDirection["shiftCellUp"] = "ShiftCellUp";
+        InsertDeleteCellsShiftDirection["shiftCellRight"] = "ShiftCellRight";
+        InsertDeleteCellsShiftDirection["shiftCellDown"] = "ShiftCellDown";
+    })(InsertDeleteCellsShiftDirection = Excel.InsertDeleteCellsShiftDirection || (Excel.InsertDeleteCellsShiftDirection = {}));
     var DocumentPropertyType;
     (function (DocumentPropertyType) {
         DocumentPropertyType["number"] = "Number";
@@ -55372,6 +57937,23 @@ var Excel;
         EventType["linkedWorkbookWorkbookLinksChanged"] = "LinkedWorkbookWorkbookLinksChanged";
         EventType["linkedWorkbookRefreshCompleted"] = "LinkedWorkbookRefreshCompleted";
         EventType["worksheetProtectionChanged"] = "WorksheetProtectionChanged";
+        EventType["worksheetNameChanged"] = "WorksheetNameChanged";
+        EventType["worksheetVisibilityChanged"] = "WorksheetVisibilityChanged";
+        EventType["worksheetMoved"] = "WorksheetMoved";
+        EventType["lineageActivityUpdateAvailable"] = "LineageActivityUpdateAvailable";
+        EventType["lineageActivityFilterUpdated"] = "LineageActivityFilterUpdated";
+        EventType["lineageActivityLoadCompleted"] = "LineageActivityLoadCompleted";
+        EventType["shapeAdded"] = "ShapeAdded";
+        EventType["shapeDeleted"] = "ShapeDeleted";
+        EventType["pivotTableAdded"] = "PivotTableAdded";
+        EventType["pivotTableDeleted"] = "PivotTableDeleted";
+        EventType["namedItemAdded"] = "NamedItemAdded";
+        EventType["namedItemDeleted"] = "NamedItemDeleted";
+        EventType["worksheetNavigationObjectChanged"] = "WorksheetNavigationObjectChanged";
+        EventType["workbookNavigationObjectChanged"] = "WorkbookNavigationObjectChanged";
+        EventType["worksheetRowHeightChanged"] = "WorksheetRowHeightChanged";
+        EventType["workbookFormulaReferenceStyleChanged"] = "WorkbookFormulaReferenceStyleChanged";
+        EventType["guidedReapplyManagerUpdateAvailable"] = "GuidedReapplyManagerUpdateAvailable";
     })(EventType = Excel.EventType || (Excel.EventType = {}));
     var DocumentPropertyItem;
     (function (DocumentPropertyItem) {
@@ -55585,6 +58167,7 @@ var Excel;
         RangeCopyType["formulas"] = "Formulas";
         RangeCopyType["values"] = "Values";
         RangeCopyType["formats"] = "Formats";
+        RangeCopyType["link"] = "Link";
     })(RangeCopyType = Excel.RangeCopyType || (Excel.RangeCopyType = {}));
     var LinkedDataTypeState;
     (function (LinkedDataTypeState) {
@@ -55990,7 +58573,7 @@ var Excel;
         NamedSheetView.prototype.activate = function () {
             _invokeMethod(this, "Activate", 0, [], 0, 0);
         };
-        NamedSheetView.prototype["delete"] = function () {
+        NamedSheetView.prototype.delete = function () {
             _invokeMethod(this, "Delete", 0, [], 0, 0);
         };
         NamedSheetView.prototype.duplicate = function (name) {
@@ -56184,7 +58767,7 @@ var Excel;
         FunctionResult.prototype.toJSON = function () {
             return _toJson(this, {
                 "error": this._E,
-                "value": this._V
+                "value": this._V,
             }, {});
         };
         FunctionResult.prototype.setMockData = function (data) {
@@ -56647,7 +59230,7 @@ var Excel;
         Functions.prototype.factDouble = function (number) {
             return _createMethodObject(FunctionResult, this, "FactDouble", 0, [number], false, true, null, 0);
         };
-        Functions.prototype["false"] = function () {
+        Functions.prototype.false = function () {
             return _createMethodObject(FunctionResult, this, "False", 0, [], false, true, null, 0);
         };
         Functions.prototype.find = function (findText, withinText, startNum) {
@@ -56740,7 +59323,7 @@ var Excel;
         Functions.prototype.iso_Ceiling = function (number, significance) {
             return _createMethodObject(FunctionResult, this, "ISO_Ceiling", 0, [number, significance], false, true, null, 0);
         };
-        Functions.prototype["if"] = function (logicalTest, valueIfTrue, valueIfFalse) {
+        Functions.prototype.if = function (logicalTest, valueIfTrue, valueIfFalse) {
             return _createMethodObject(FunctionResult, this, "If", 0, [logicalTest, valueIfTrue, valueIfFalse], false, true, null, 0);
         };
         Functions.prototype.imAbs = function (inumber) {
@@ -57372,7 +59955,7 @@ var Excel;
         Functions.prototype.trimMean = function (array, percent) {
             return _createMethodObject(FunctionResult, this, "TrimMean", 0, [array, percent], false, true, null, 0);
         };
-        Functions.prototype["true"] = function () {
+        Functions.prototype.true = function () {
             return _createMethodObject(FunctionResult, this, "True", 0, [], false, true, null, 0);
         };
         Functions.prototype.trunc = function (number, numDigits) {
@@ -57498,7 +60081,9 @@ var Excel;
         ErrorCodes["accessDenied"] = "AccessDenied";
         ErrorCodes["apiNotFound"] = "ApiNotFound";
         ErrorCodes["conflict"] = "Conflict";
+        ErrorCodes["emptyChartSeries"] = "EmptyChartSeries";
         ErrorCodes["filteredRangeConflict"] = "FilteredRangeConflict";
+        ErrorCodes["formulaLengthExceedsLimit"] = "FormulaLengthExceedsLimit";
         ErrorCodes["generalException"] = "GeneralException";
         ErrorCodes["inactiveWorkbook"] = "InactiveWorkbook";
         ErrorCodes["insertDeleteConflict"] = "InsertDeleteConflict";
@@ -57512,9 +60097,13 @@ var Excel;
         ErrorCodes["mergedRangeConflict"] = "MergedRangeConflict";
         ErrorCodes["nonBlankCellOffSheet"] = "NonBlankCellOffSheet";
         ErrorCodes["notImplemented"] = "NotImplemented";
+        ErrorCodes["openWorkbookLinksBlocked"] = "OpenWorkbookLinksBlocked";
+        ErrorCodes["operationCellsExceedLimit"] = "OperationCellsExceedLimit";
         ErrorCodes["pivotTableRangeConflict"] = "PivotTableRangeConflict";
         ErrorCodes["rangeExceedsLimit"] = "RangeExceedsLimit";
+        ErrorCodes["refreshWorkbookLinksBlocked"] = "RefreshWorkbookLinksBlocked";
         ErrorCodes["requestAborted"] = "RequestAborted";
+        ErrorCodes["responsePayloadSizeLimitExceeded"] = "ResponsePayloadSizeLimitExceeded";
         ErrorCodes["unsupportedFeature"] = "UnsupportedFeature";
         ErrorCodes["unsupportedOperation"] = "UnsupportedOperation";
         ErrorCodes["unsupportedSheet"] = "UnsupportedSheet";
@@ -57525,2147 +60114,2221 @@ var Excel;
     })(Interfaces = Excel.Interfaces || (Excel.Interfaces = {}));
 })(Excel || (Excel = {}));
 var _EndExcel = "_EndExcel";
-!function (modules) {
-    var installedModules = {};
-    function __webpack_require__(moduleId) {
-        if (installedModules[moduleId])
-            return installedModules[moduleId].exports;
-        var module = installedModules[moduleId] = {
-            i: moduleId,
-            l: !1,
-            exports: {}
-        };
-        return modules[moduleId].call(module.exports, module, module.exports, __webpack_require__),
-            module.l = !0, module.exports;
+if (typeof (window) !== "undefined" &&
+    window.OSF &&
+    window.OSF._OfficeAppFactory &&
+    window.OSF._OfficeAppFactory.getHostInfo &&
+    window.OSF._OfficeAppFactory.getHostInfo()) {
+    var hostPlatform = window.OSF._OfficeAppFactory.getHostInfo().hostPlatform;
+    if (hostPlatform === "web") {
+        OfficeExtension._internalConfig.enablePreviewExecution = true;
     }
-    __webpack_require__.m = modules, __webpack_require__.c = installedModules, __webpack_require__.d = function (exports, name, getter) {
-        __webpack_require__.o(exports, name) || Object.defineProperty(exports, name, {
-            enumerable: !0,
-            get: getter
-        });
-    }, __webpack_require__.r = function (exports) {
-        "undefined" != typeof Symbol && Symbol.toStringTag && Object.defineProperty(exports, Symbol.toStringTag, {
-            value: "Module"
-        }), Object.defineProperty(exports, "__esModule", {
-            value: !0
-        });
-    }, __webpack_require__.t = function (value, mode) {
-        if (1 & mode && (value = __webpack_require__(value)), 8 & mode)
-            return value;
-        if (4 & mode && "object" == typeof value && value && value.__esModule)
-            return value;
-        var ns = Object.create(null);
-        if (__webpack_require__.r(ns), Object.defineProperty(ns, "default", {
-            enumerable: !0,
-            value: value
-        }), 2 & mode && "string" != typeof value)
-            for (var key in value)
-                __webpack_require__.d(ns, key, function (key) {
-                    return value[key];
-                }.bind(null, key));
-        return ns;
-    }, __webpack_require__.n = function (module) {
-        var getter = module && module.__esModule ? function () {
-            return module["default"];
-        } : function () {
-            return module;
-        };
-        return __webpack_require__.d(getter, "a", getter), getter;
-    }, __webpack_require__.o = function (object, property) {
-        return Object.prototype.hasOwnProperty.call(object, property);
-    }, __webpack_require__.p = "", __webpack_require__(__webpack_require__.s = 1);
-}([function (module, exports) {
-        module.exports = OfficeExtensionBatch;
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), __webpack_require__(2), "undefined" == typeof CustomFunctionMappings && (window.CustomFunctionMappings = {}),
-            "undefined" == typeof Promise && (window.Promise = Office.Promise), window.OfficeExtensionBatch = window.OfficeExtensionBatch || window.OfficeExtension;
-        var customfunctions_agave_initialize_1 = __webpack_require__(3);
-        !function () {
-            var shouldInitialize = !1;
-            "undefined" != typeof OSF && OSF._OfficeAppFactory && OSF._OfficeAppFactory.getHostInfo && (0 != (2 & (OSF._OfficeAppFactory && OSF._OfficeAppFactory.getHostInfo().flags)) && (shouldInitialize = !0));
-            customfunctions_agave_initialize_1["default"](shouldInitialize);
-        }();
-    }, function (module, exports) {
-        !function (self) {
-            "use strict";
-            if (!self.fetch) {
-                var support_searchParams = "URLSearchParams" in self, support_iterable = "Symbol" in self && "iterator" in Symbol, support_blob = "FileReader" in self && "Blob" in self && function () {
-                    try {
-                        return new Blob, !0;
-                    }
-                    catch (e) {
-                        return !1;
-                    }
-                }(), support_formData = "FormData" in self, support_arrayBuffer = "ArrayBuffer" in self;
-                if (support_arrayBuffer)
-                    var viewClasses = ["[object Int8Array]", "[object Uint8Array]", "[object Uint8ClampedArray]", "[object Int16Array]", "[object Uint16Array]", "[object Int32Array]", "[object Uint32Array]", "[object Float32Array]", "[object Float64Array]"], isDataView = function (obj) {
-                        return obj && DataView.prototype.isPrototypeOf(obj);
-                    }, isArrayBufferView = ArrayBuffer.isView || function (obj) {
-                        return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1;
-                    };
-                Headers.prototype.append = function (name, value) {
-                    name = normalizeName(name), value = normalizeValue(value);
-                    var oldValue = this.map[name];
-                    this.map[name] = oldValue ? oldValue + "," + value : value;
-                }, Headers.prototype["delete"] = function (name) {
-                    delete this.map[normalizeName(name)];
-                }, Headers.prototype.get = function (name) {
-                    return name = normalizeName(name), this.has(name) ? this.map[name] : null;
-                }, Headers.prototype.has = function (name) {
-                    return this.map.hasOwnProperty(normalizeName(name));
-                }, Headers.prototype.set = function (name, value) {
-                    this.map[normalizeName(name)] = normalizeValue(value);
-                }, Headers.prototype.forEach = function (callback, thisArg) {
-                    for (var name in this.map)
-                        this.map.hasOwnProperty(name) && callback.call(thisArg, this.map[name], name, this);
-                }, Headers.prototype.keys = function () {
-                    var items = [];
-                    return this.forEach((function (value, name) {
-                        items.push(name);
-                    })), iteratorFor(items);
-                }, Headers.prototype.values = function () {
-                    var items = [];
-                    return this.forEach((function (value) {
-                        items.push(value);
-                    })), iteratorFor(items);
-                }, Headers.prototype.entries = function () {
-                    var items = [];
-                    return this.forEach((function (value, name) {
-                        items.push([name, value]);
-                    })), iteratorFor(items);
-                }, support_iterable && (Headers.prototype[Symbol.iterator] = Headers.prototype.entries);
-                var methods = ["DELETE", "GET", "HEAD", "OPTIONS", "POST", "PUT"];
-                Request.prototype.clone = function () {
-                    return new Request(this, {
-                        body: this._bodyInit
-                    });
-                }, Body.call(Request.prototype), Body.call(Response.prototype), Response.prototype.clone = function () {
-                    return new Response(this._bodyInit, {
-                        status: this.status,
-                        statusText: this.statusText,
-                        headers: new Headers(this.headers),
-                        url: this.url
-                    });
-                }, Response.error = function () {
-                    var response = new Response(null, {
-                        status: 0,
-                        statusText: ""
-                    });
-                    return response.type = "error", response;
-                };
-                var redirectStatuses = [301, 302, 303, 307, 308];
-                Response.redirect = function (url, status) {
-                    if (-1 === redirectStatuses.indexOf(status))
-                        throw new RangeError("Invalid status code");
-                    return new Response(null, {
-                        status: status,
-                        headers: {
-                            location: url
-                        }
-                    });
-                }, self.Headers = Headers, self.Request = Request, self.Response = Response, self.fetch = function (input, init) {
-                    return new Promise((function (resolve, reject) {
-                        var request = new Request(input, init), xhr = new XMLHttpRequest;
-                        xhr.onload = function () {
-                            var rawHeaders, headers, options = {
-                                status: xhr.status,
-                                statusText: xhr.statusText,
-                                headers: (rawHeaders = xhr.getAllResponseHeaders() || "", headers = new Headers,
-                                    rawHeaders.split(/\r?\n/).forEach((function (line) {
-                                        var parts = line.split(":"), key = parts.shift().trim();
-                                        if (key) {
-                                            var value = parts.join(":").trim();
-                                            headers.append(key, value);
-                                        }
-                                    })), headers)
-                            };
-                            options.url = "responseURL" in xhr ? xhr.responseURL : options.headers.get("X-Request-URL");
-                            var body = "response" in xhr ? xhr.response : xhr.responseText;
-                            resolve(new Response(body, options));
-                        }, xhr.onerror = function () {
-                            reject(new TypeError("Network request failed"));
-                        }, xhr.ontimeout = function () {
-                            reject(new TypeError("Network request failed"));
-                        }, xhr.open(request.method, request.url, !0), "include" === request.credentials && (xhr.withCredentials = !0),
-                            "responseType" in xhr && support_blob && (xhr.responseType = "blob"), request.headers.forEach((function (value, name) {
-                            xhr.setRequestHeader(name, value);
-                        })), xhr.send(void 0 === request._bodyInit ? null : request._bodyInit);
-                    }));
-                }, self.fetch.polyfill = !0;
-            }
-            function normalizeName(name) {
-                if ("string" != typeof name && (name = String(name)), /[^a-z0-9\-#$%&'*+.\^_`|~]/i.test(name))
-                    throw new TypeError("Invalid character in header field name");
-                return name.toLowerCase();
-            }
-            function normalizeValue(value) {
-                return "string" != typeof value && (value = String(value)), value;
-            }
-            function iteratorFor(items) {
-                var iterator = {
-                    next: function () {
-                        var value = items.shift();
-                        return {
-                            done: void 0 === value,
-                            value: value
-                        };
-                    }
-                };
-                return support_iterable && (iterator[Symbol.iterator] = function () {
-                    return iterator;
-                }), iterator;
-            }
-            function Headers(headers) {
-                this.map = {}, headers instanceof Headers ? headers.forEach((function (value, name) {
-                    this.append(name, value);
-                }), this) : Array.isArray(headers) ? headers.forEach((function (header) {
-                    this.append(header[0], header[1]);
-                }), this) : headers && Object.getOwnPropertyNames(headers).forEach((function (name) {
-                    this.append(name, headers[name]);
-                }), this);
-            }
-            function consumed(body) {
-                if (body.bodyUsed)
-                    return Promise.reject(new TypeError("Already read"));
-                body.bodyUsed = !0;
-            }
-            function fileReaderReady(reader) {
-                return new Promise((function (resolve, reject) {
-                    reader.onload = function () {
-                        resolve(reader.result);
-                    }, reader.onerror = function () {
-                        reject(reader.error);
-                    };
-                }));
-            }
-            function readBlobAsArrayBuffer(blob) {
-                var reader = new FileReader, promise = fileReaderReady(reader);
-                return reader.readAsArrayBuffer(blob), promise;
-            }
-            function bufferClone(buf) {
-                if (buf.slice)
-                    return buf.slice(0);
-                var view = new Uint8Array(buf.byteLength);
-                return view.set(new Uint8Array(buf)), view.buffer;
-            }
-            function Body() {
-                return this.bodyUsed = !1, this._initBody = function (body) {
-                    if (this._bodyInit = body, body)
-                        if ("string" == typeof body)
-                            this._bodyText = body;
-                        else if (support_blob && Blob.prototype.isPrototypeOf(body))
-                            this._bodyBlob = body;
-                        else if (support_formData && FormData.prototype.isPrototypeOf(body))
-                            this._bodyFormData = body;
-                        else if (support_searchParams && URLSearchParams.prototype.isPrototypeOf(body))
-                            this._bodyText = body.toString();
-                        else if (support_arrayBuffer && support_blob && isDataView(body))
-                            this._bodyArrayBuffer = bufferClone(body.buffer),
-                                this._bodyInit = new Blob([this._bodyArrayBuffer]);
-                        else {
-                            if (!support_arrayBuffer || !ArrayBuffer.prototype.isPrototypeOf(body) && !isArrayBufferView(body))
-                                throw new Error("unsupported BodyInit type");
-                            this._bodyArrayBuffer = bufferClone(body);
-                        }
-                    else
-                        this._bodyText = "";
-                    this.headers.get("content-type") || ("string" == typeof body ? this.headers.set("content-type", "text/plain;charset=UTF-8") : this._bodyBlob && this._bodyBlob.type ? this.headers.set("content-type", this._bodyBlob.type) : support_searchParams && URLSearchParams.prototype.isPrototypeOf(body) && this.headers.set("content-type", "application/x-www-form-urlencoded;charset=UTF-8"));
-                }, support_blob && (this.blob = function () {
-                    var rejected = consumed(this);
-                    if (rejected)
-                        return rejected;
-                    if (this._bodyBlob)
-                        return Promise.resolve(this._bodyBlob);
-                    if (this._bodyArrayBuffer)
-                        return Promise.resolve(new Blob([this._bodyArrayBuffer]));
-                    if (this._bodyFormData)
-                        throw new Error("could not read FormData body as blob");
-                    return Promise.resolve(new Blob([this._bodyText]));
-                }, this.arrayBuffer = function () {
-                    return this._bodyArrayBuffer ? consumed(this) || Promise.resolve(this._bodyArrayBuffer) : this.blob().then(readBlobAsArrayBuffer);
-                }), this.text = function () {
-                    var blob, reader, promise, rejected = consumed(this);
-                    if (rejected)
-                        return rejected;
-                    if (this._bodyBlob)
-                        return blob = this._bodyBlob, reader = new FileReader, promise = fileReaderReady(reader),
-                            reader.readAsText(blob), promise;
-                    if (this._bodyArrayBuffer)
-                        return Promise.resolve(function (buf) {
-                            for (var view = new Uint8Array(buf), chars = new Array(view.length), i = 0; i < view.length; i++)
-                                chars[i] = String.fromCharCode(view[i]);
-                            return chars.join("");
-                        }(this._bodyArrayBuffer));
-                    if (this._bodyFormData)
-                        throw new Error("could not read FormData body as text");
-                    return Promise.resolve(this._bodyText);
-                }, support_formData && (this.formData = function () {
-                    return this.text().then(decode);
-                }), this.json = function () {
-                    return this.text().then(JSON.parse);
-                }, this;
-            }
-            function Request(input, options) {
-                var method, upcased, body = (options = options || {}).body;
-                if (input instanceof Request) {
-                    if (input.bodyUsed)
-                        throw new TypeError("Already read");
-                    this.url = input.url, this.credentials = input.credentials, options.headers || (this.headers = new Headers(input.headers)),
-                        this.method = input.method, this.mode = input.mode, body || null == input._bodyInit || (body = input._bodyInit,
-                        input.bodyUsed = !0);
-                }
-                else
-                    this.url = String(input);
-                if (this.credentials = options.credentials || this.credentials || "omit", !options.headers && this.headers || (this.headers = new Headers(options.headers)),
-                    this.method = (method = options.method || this.method || "GET", upcased = method.toUpperCase(),
-                        methods.indexOf(upcased) > -1 ? upcased : method), this.mode = options.mode || this.mode || null,
-                    this.referrer = null, ("GET" === this.method || "HEAD" === this.method) && body)
-                    throw new TypeError("Body not allowed for GET or HEAD requests");
-                this._initBody(body);
-            }
-            function decode(body) {
-                var form = new FormData;
-                return body.trim().split("&").forEach((function (bytes) {
-                    if (bytes) {
-                        var split = bytes.split("="), name = split.shift().replace(/\+/g, " "), value = split.join("=").replace(/\+/g, " ");
-                        form.append(decodeURIComponent(name), decodeURIComponent(value));
-                    }
-                })), form;
-            }
-            function Response(bodyInit, options) {
-                options || (options = {}), this.type = "default", this.status = "status" in options ? options.status : 200,
-                    this.ok = this.status >= 200 && this.status < 300, this.statusText = "statusText" in options ? options.statusText : "OK",
-                    this.headers = new Headers(options.headers), this.url = options.url || "", this._initBody(bodyInit);
-            }
-        }("undefined" != typeof self ? self : this);
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        });
-        var CFRuntime = __webpack_require__(4);
-        exports["default"] = function (shouldInitRuntime) {
-            function documentReadyCallback() {
-                Office.onReady((function (hostInfo) {
-                    hostInfo.host === Office.HostType.Excel ? function initializeCustomFunctionsOrDelay() {
-                        CustomFunctionMappings && CustomFunctionMappings.__delay__ ? setTimeout(initializeCustomFunctionsOrDelay, 50) : CFRuntime.CustomFunctions.initialize();
-                    }() : console.warn("Warning: Expected to be loaded inside of an Excel add-in.");
-                }));
-            }
-            window.CustomFunctions = window.CustomFunctions || {}, window.CustomFunctions.setCustomFunctionInvoker = CFRuntime.setCustomFunctionInvoker,
-                window.CustomFunctions.Error = CFRuntime.CustomFunctionError, window.CustomFunctions.ErrorCode = CFRuntime.ErrorCode,
-                CFRuntime.setCustomFunctionAssociation(window.CustomFunctions._association), shouldInitRuntime && ("loading" === document.readyState ? document.addEventListener("DOMContentLoaded", documentReadyCallback) : documentReadyCallback());
-        };
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        var extendStatics, __extends = this && this.__extends || (extendStatics = function (d, b) {
-            return (extendStatics = Object.setPrototypeOf || {
-                __proto__: []
-            } instanceof Array && function (d, b) {
-                d.__proto__ = b;
-            } || function (d, b) {
-                for (var p in b)
-                    b.hasOwnProperty(p) && (d[p] = b[p]);
-            })(d, b);
-        }, function (d, b) {
-            function __() {
-                this.constructor = d;
-            }
-            extendStatics(d, b), d.prototype = null === b ? Object.create(b) : (__.prototype = b.prototype,
-                new __);
-        });
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.CustomFunctionsContainer = exports.CustomFunctions = exports.setCustomFunctionInvoker = exports.setCustomFunctionAssociation = exports.customFunctionProxy = exports.CustomFunctionProxy = exports.CustomFunctionError = exports.ErrorCode = exports.InvocationContext = exports.Script = void 0;
-        var OfficeExtension = __webpack_require__(0), Core = __webpack_require__(0), _createPropertyObject = OfficeExtension.BatchApiHelper.createPropertyObject, _createRootServiceObject = (OfficeExtension.BatchApiHelper.createMethodObject,
-            OfficeExtension.BatchApiHelper.createIndexerObject, OfficeExtension.BatchApiHelper.createRootServiceObject), _createTopLevelServiceObject = OfficeExtension.BatchApiHelper.createTopLevelServiceObject, _invokeMethod = (OfficeExtension.BatchApiHelper.createChildItemObject,
-            OfficeExtension.BatchApiHelper.invokeMethod), _isNullOrUndefined = (OfficeExtension.BatchApiHelper.invokeEnsureUnchanged,
-            OfficeExtension.BatchApiHelper.invokeSetProperty, OfficeExtension.Utility.isNullOrUndefined), _throwIfApiNotSupported = (OfficeExtension.Utility.isUndefined,
-            OfficeExtension.Utility.throwIfNotLoaded, OfficeExtension.Utility.throwIfApiNotSupported), _load = OfficeExtension.Utility.load, _toJson = (OfficeExtension.Utility.retrieve,
-            OfficeExtension.Utility.toJson), _fixObjectPathIfNecessary = OfficeExtension.Utility.fixObjectPathIfNecessary, _handleNavigationPropertyResults = OfficeExtension.Utility._handleNavigationPropertyResults, _processRetrieveResult = (OfficeExtension.Utility.adjustToDateTime,
-            OfficeExtension.Utility.processRetrieveResult), CustomFunctionRequestContext = (OfficeExtension.Utility.setMockData,
-            OfficeExtension.CommonUtility.calculateApiFlags, function (_super) {
-            function CustomFunctionRequestContext(requestInfo) {
-                var _this = _super.call(this, requestInfo) || this;
-                return _this.m_customFunctions = CustomFunctions.newObject(_this), _this.m_container = _createRootServiceObject(CustomFunctionsContainer, _this),
-                    _this._rootObject = _this.m_container, _this._rootObjectPropertyName = "customFunctionsContainer",
-                    _this._requestFlagModifier = 2176, _this;
-            }
-            return __extends(CustomFunctionRequestContext, _super), Object.defineProperty(CustomFunctionRequestContext.prototype, "customFunctions", {
-                get: function () {
-                    return this.m_customFunctions;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Object.defineProperty(CustomFunctionRequestContext.prototype, "customFunctionsContainer", {
-                get: function () {
-                    return this.m_container;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), CustomFunctionRequestContext.prototype._processOfficeJsErrorResponse = function (officeJsErrorCode, response) {
-                5004 === officeJsErrorCode && (response.ErrorCode = CustomFunctionRuntimeErrorCode.invalidOperationInCellEditMode,
-                    response.ErrorMessage = OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.invalidOperationInCellEditMode));
-            }, CustomFunctionRequestContext;
-        }(OfficeExtension.ClientRequestContext));
-        exports.Script = {
-            _CustomFunctionMetadata: {}
-        };
-        var CustomFunctionLoggingSeverity, InvocationContext = function () {
-            function InvocationContext(functionName, address, parameterAddresses, setResultHandler, setErrorHandler) {
-                this._functionName = functionName, _isNullOrUndefined(address) || (this._address = address),
-                    _isNullOrUndefined(parameterAddresses) || (this._parameterAddresses = parameterAddresses),
-                    this.setResult = setResultHandler, this.setError = setErrorHandler;
-            }
-            return Object.defineProperty(InvocationContext.prototype, "onCanceled", {
-                get: function () {
-                    if (!_isNullOrUndefined(this._onCanceled) && "function" == typeof this._onCanceled)
-                        return this._onCanceled;
-                },
-                set: function (handler) {
-                    this._onCanceled = handler;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Object.defineProperty(InvocationContext.prototype, "functionName", {
-                get: function () {
-                    return this._functionName;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Object.defineProperty(InvocationContext.prototype, "address", {
-                get: function () {
-                    return this._address;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Object.defineProperty(InvocationContext.prototype, "parameterAddresses", {
-                get: function () {
-                    return this._parameterAddresses;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), InvocationContext;
-        }();
-        exports.InvocationContext = InvocationContext, function (CustomFunctionLoggingSeverity) {
-            CustomFunctionLoggingSeverity.Info = "Medium", CustomFunctionLoggingSeverity.Error = "Unexpected",
-                CustomFunctionLoggingSeverity.Verbose = "Verbose";
-        }(CustomFunctionLoggingSeverity || (CustomFunctionLoggingSeverity = {}));
-        var ErrorCode, CustomFunctionLog = function (Severity, Message) {
-            this.Severity = Severity, this.Message = Message;
-        }, CustomFunctionsLogger = function () {
-            function CustomFunctionsLogger() { }
-            return CustomFunctionsLogger.logEvent = function (log, data, data2) {
-                if (CustomFunctionsLogger.s_shouldLog || OfficeExtension.CoreUtility._logEnabled) {
-                    var logMessage = log.Severity + " " + log.Message + data;
-                    if (data2 && (logMessage = logMessage + " " + data2), OfficeExtension.Utility.log(logMessage),
-                        CustomFunctionsLogger.s_shouldLog)
-                        switch (log.Severity) {
-                            case CustomFunctionLoggingSeverity.Verbose:
-                                null !== console.log && console.log(logMessage);
-                                break;
-                            case CustomFunctionLoggingSeverity.Info:
-                                null !== console.info && console.info(logMessage);
-                                break;
-                            case CustomFunctionLoggingSeverity.Error:
-                                null !== console.error && console.error(logMessage);
-                        }
-                }
-            }, CustomFunctionsLogger.shouldLog = function () {
-                try {
-                    return !_isNullOrUndefined(console) && !_isNullOrUndefined(window) && window.name && "string" == typeof window.name && JSON.parse(window.name)[CustomFunctionsLogger.CustomFunctionLoggingFlag];
-                }
-                catch (ex) {
-                    return OfficeExtension.Utility.log(JSON.stringify(ex)), !1;
-                }
-            }, CustomFunctionsLogger.CustomFunctionLoggingFlag = "CustomFunctionsRuntimeLogging",
-                CustomFunctionsLogger.s_shouldLog = CustomFunctionsLogger.shouldLog(), CustomFunctionsLogger;
-        }();
-        !function (ErrorCode) {
-            ErrorCode.invalidValue = "#VALUE!", ErrorCode.notAvailable = "#N/A", ErrorCode.divisionByZero = "#DIV/0!",
-                ErrorCode.invalidNumber = "#NUM!", ErrorCode.nullReference = "#NULL!", ErrorCode.invalidName = "#NAME?",
-                ErrorCode.invalidReference = "#REF!";
-        }(ErrorCode = exports.ErrorCode || (exports.ErrorCode = {}));
-        var CustomFunctionError = function (_super) {
-            function CustomFunctionError(errorCode, errorMessage) {
-                var _this = _super.call(this, errorMessage || "") || this;
-                return Object.setPrototypeOf(_this, CustomFunctionError.prototype), _this.valueType = "CustomFunctionError",
-                    _this.code = errorCode || ErrorCode.invalidValue, _this.stack = void 0, _this;
-            }
-            return __extends(CustomFunctionError, _super), CustomFunctionError.prototype.toJSON = function () {
-                return {
-                    valueType: this.valueType,
-                    code: this.code,
-                    message: this.message
-                };
-            }, CustomFunctionError;
-        }(Error);
-        exports.CustomFunctionError = CustomFunctionError;
-        var CustomFunctionProxy = function () {
-            function CustomFunctionProxy() {
-                this._whenInit = void 0, this._isInit = !1, this._setResultsDelayMillis = 50, this._setResultsOverdueDelayMillis = 2e3,
-                    this._maxContextSyncExecutionDurationMills = 15e3, this._minContextSyncIntervalMills = 500,
-                    this._setResultsLifeMillis = 6e4, this._ensureInitRetryDelayMillis = 500, this._resultEntryBuffer = {},
-                    this._resultEntryRetryBuffer = {}, this._retryBufferBodySize = 0, this._isSetResultsTaskScheduled = !1,
-                    this._setResultsTaskOverdueTime = 0, this._inProgressContextSyncExpectedFinishTime = 0,
-                    this._batchQuotaMillis = 1e3, this._invocationContextMap = {}, this._maxResultSize = 2e6;
-            }
-            return CustomFunctionProxy.prototype._initSettings = function () {
-                if ("object" == typeof exports.Script && "object" == typeof exports.Script._CustomFunctionSettings) {
-                    if ("number" == typeof exports.Script._CustomFunctionSettings.setResultsDelayMillis) {
-                        var setResultsDelayMillis = exports.Script._CustomFunctionSettings.setResultsDelayMillis;
-                        setResultsDelayMillis = Math.max(0, setResultsDelayMillis), setResultsDelayMillis = Math.min(1e3, setResultsDelayMillis),
-                            this._setResultsDelayMillis = setResultsDelayMillis;
-                    }
-                    if ("number" == typeof exports.Script._CustomFunctionSettings.ensureInitRetryDelayMillis) {
-                        var ensureInitRetryDelayMillis = exports.Script._CustomFunctionSettings.ensureInitRetryDelayMillis;
-                        ensureInitRetryDelayMillis = Math.max(0, ensureInitRetryDelayMillis), ensureInitRetryDelayMillis = Math.min(2e3, ensureInitRetryDelayMillis),
-                            this._ensureInitRetryDelayMillis = ensureInitRetryDelayMillis;
-                    }
-                    if ("number" == typeof exports.Script._CustomFunctionSettings.setResultsLifeMillis) {
-                        var setResultsLifeMillis = exports.Script._CustomFunctionSettings.setResultsLifeMillis;
-                        setResultsLifeMillis = Math.max(0, setResultsLifeMillis), setResultsLifeMillis = Math.min(6e5, setResultsLifeMillis),
-                            this._setResultsLifeMillis = setResultsLifeMillis;
-                    }
-                    if ("number" == typeof exports.Script._CustomFunctionSettings.batchQuotaMillis) {
-                        var batchQuotaMillis = exports.Script._CustomFunctionSettings.batchQuotaMillis;
-                        batchQuotaMillis = Math.max(0, batchQuotaMillis), batchQuotaMillis = Math.min(1e3, batchQuotaMillis),
-                            this._batchQuotaMillis = batchQuotaMillis;
-                    }
-                }
-            }, CustomFunctionProxy.prototype.ensureInit = function (context) {
-                var _this = this;
-                return this._initSettings(), void 0 === this._whenInit && (this._whenInit = OfficeExtension.Utility._createPromiseFromResult(null).then((function () {
-                    if (!_this._isInit)
-                        return context.eventRegistration.register(5, "", _this._handleMessage.bind(_this));
-                })).then((function () {
-                    _this._isInit = !0;
-                }))), this._isInit || context._pendingRequest._addPreSyncPromise(this._whenInit),
-                    this._whenInit;
-            }, CustomFunctionProxy.prototype.setCustomFunctionInvoker = function (invoker) {
-                "object" == typeof CustomFunctionMappings && delete CustomFunctionMappings.__delay__,
-                    this._invoker = invoker;
-            }, CustomFunctionProxy.prototype.setCustomFunctionAssociation = function (association) {
-                var _this = this;
-                this._customFunctionMappingsUpperCase = void 0, this._association = association,
-                    this._association && this._association.onchange((function () {
-                        _this._customFunctionMappingsUpperCase = void 0;
-                    }));
-            }, CustomFunctionProxy.prototype._initFromHostBridge = function (hostBridge) {
-                var _this = this;
-                this._initSettings(), hostBridge.addHostMessageHandler((function (bridgeMessage) {
-                    3 === bridgeMessage.type ? _this._handleMessage(bridgeMessage.message) : 4 === bridgeMessage.type && _this._handleSettings(bridgeMessage.message);
-                })), this._isInit = !0, this._whenInit = OfficeExtension.CoreUtility.Promise.resolve();
-            }, CustomFunctionProxy.prototype._handleSettings = function (args) {
-                OfficeExtension.Utility.log("CustomFunctionProxy._handleSettings:" + JSON.stringify(args)),
-                    args && "object" == typeof args && (CustomFunctionsLogger.s_shouldLog = args[CustomFunctionsLogger.CustomFunctionLoggingFlag]);
-            }, CustomFunctionProxy.prototype._handleMessage = function (args) {
-                try {
-                    OfficeExtension.Utility.log("CustomFunctionProxy._handleMessage"), OfficeExtension.Utility.checkArgumentNull(args, "args");
-                    for (var entryArray = args.entries, invocationArray = [], cancellationArray = [], metadataArray = [], i = 0; i < entryArray.length; i++)
-                        1 === entryArray[i].messageCategory && ("string" == typeof entryArray[i].message && (entryArray[i].message = JSON.parse(entryArray[i].message)),
-                            1e3 === entryArray[i].messageType ? invocationArray.push(entryArray[i]) : 1001 === entryArray[i].messageType ? cancellationArray.push(entryArray[i]) : 1002 === entryArray[i].messageType ? metadataArray.push(entryArray[i]) : OfficeExtension.Utility.log("CustomFunctionProxy._handleMessage unknown message type " + entryArray[i].messageType));
-                    if (metadataArray.length > 0 && this._handleMetadataEntries(metadataArray), invocationArray.length > 0) {
-                        var batchArray = this._batchInvocationEntries(invocationArray);
-                        batchArray.length > 0 && this._invokeRemainingBatchEntries(batchArray, 0);
-                    }
-                    cancellationArray.length > 0 && this._handleCancellationEntries(cancellationArray);
-                }
-                catch (ex) {
-                    throw CustomFunctionProxy._tryLog(ex), ex;
-                }
-                return OfficeExtension.Utility._createPromiseFromResult(null);
-            }, CustomFunctionProxy.toLogMessage = function (ex) {
-                var ret = "Unknown Error";
-                if (ex)
-                    try {
-                        ex.toString && (ret = ex.toString()), ret = ret + " " + JSON.stringify(ex);
-                    }
-                    catch (otherEx) {
-                        ret = "Unexpected Error";
-                    }
-                return ret;
-            }, CustomFunctionProxy._tryLog = function (ex) {
-                var message = CustomFunctionProxy.toLogMessage(ex);
-                OfficeExtension.Utility.log(message);
-            }, CustomFunctionProxy.prototype._handleMetadataEntries = function (entryArray) {
-                for (var i = 0; i < entryArray.length; i++) {
-                    var message = entryArray[i].message;
-                    if (_isNullOrUndefined(message))
-                        throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "message", "CustomFunctionProxy._handleMetadataEntries");
-                    exports.Script._CustomFunctionMetadata[message.functionName] = {
-                        options: {
-                            stream: message.isStream,
-                            cancelable: message.isCancelable
-                        }
-                    };
-                }
-            }, CustomFunctionProxy.prototype._handleCancellationEntries = function (entryArray) {
-                for (var i = 0; i < entryArray.length; i++) {
-                    var message = entryArray[i].message;
-                    if (_isNullOrUndefined(message))
-                        throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "message", "CustomFunctionProxy._handleCancellationEntries");
-                    var invocationId = message.invocationId, invocationContext = this._invocationContextMap[invocationId];
-                    _isNullOrUndefined(invocationContext) || (delete this._invocationContextMap[invocationId],
-                        CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionCancellation, invocationContext.functionName),
-                        _isNullOrUndefined(invocationContext.onCanceled) || invocationContext.onCanceled());
-                }
-            }, CustomFunctionProxy.prototype._transferCustomFunctionError = function (entryArray) {
-                var _this = this;
-                return entryArray.map((function (value, index) {
-                    return null === value ? value : null != value.code && "CustomFunctionError" == value.type ? new CustomFunctionError(value.code) : value instanceof Array ? _this._transferCustomFunctionError(value) : value;
-                }));
-            }, CustomFunctionProxy.prototype._batchInvocationEntries = function (entryArray) {
-                for (var _this = this, batchArray = [], _loop_1 = function (i) {
-                    var message, arrayOrObjectMessage = entryArray[i].message;
-                    if (Array.isArray(arrayOrObjectMessage) ? (message = {
-                        invocationId: arrayOrObjectMessage[0],
-                        functionName: arrayOrObjectMessage[1],
-                        parameterValues: arrayOrObjectMessage[2],
-                        address: arrayOrObjectMessage[3],
-                        flags: arrayOrObjectMessage[4],
-                        parameterAddresses: null
-                    }, _isNullOrUndefined(arrayOrObjectMessage[5]) || (message.parameterAddresses = arrayOrObjectMessage[5])) : message = arrayOrObjectMessage,
-                        _isNullOrUndefined(message))
-                        throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "message", "CustomFunctionProxy._batchInvocationEntries");
-                    if (_isNullOrUndefined(message.invocationId) || message.invocationId < 0)
-                        throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "invocationId", "CustomFunctionProxy._batchInvocationEntries");
-                    if (_isNullOrUndefined(message.functionName))
-                        throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "functionName", "CustomFunctionProxy._batchInvocationEntries");
-                    var call = null, isCancelable = !1, isStreaming = !1;
-                    if ("number" == typeof message.flags)
-                        isCancelable = 0 != (1 & message.flags), isStreaming = 0 != (2 & message.flags),
-                            0 != (4 & message.flags) && (message.parameterValues = this_1._transferCustomFunctionError(message.parameterValues));
-                    else {
-                        var metadata = exports.Script._CustomFunctionMetadata[message.functionName];
-                        if (_isNullOrUndefined(metadata))
-                            return CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionNotFoundLog, message.functionName),
-                                OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.8") ? this_1._setError(message.invocationId, null, 9) : this_1._setError(message.invocationId, "N/A", 1),
-                                "continue";
-                        isCancelable = metadata.options.cancelable, isStreaming = metadata.options.stream;
-                    }
-                    if (this_1._invoker && !this_1._customFunctionMappingsContains(message.functionName))
-                        return this_1._invokeFunctionUsingInvoker(message),
-                            "continue";
-                    try {
-                        call = this_1._getFunction(message.functionName);
-                    }
-                    catch (ex) {
-                        return CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionNotFoundLog, message.functionName),
-                            OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.8") ? this_1._setError(message.invocationId, ex, 10) : this_1._setError(message.invocationId, ex, 1),
-                            "continue";
-                    }
-                    var invocationContext = void 0;
-                    if (isStreaming || isCancelable) {
-                        var setResult = void 0, setError = void 0;
-                        isStreaming && (setResult = function (result) {
-                            _this._invocationContextMap[message.invocationId] ? _this._setResult(message.invocationId, result) : CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionAlreadyCancelled, message.functionName);
-                        }, setError = function (error) {
-                            _this._invocationContextMap[message.invocationId] ? _this._setError(message.invocationId, error.message, _this._getCustomFunctionResultErrorCodeFromErrorCode(error.code)) : CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionAlreadyCancelled, message.functionName);
-                        }), invocationContext = new InvocationContext(message.functionName, message.address, message.parameterAddresses, setResult, setError),
-                            this_1._invocationContextMap[message.invocationId] = invocationContext;
-                    }
-                    else
-                        invocationContext = new InvocationContext(message.functionName, message.address, message.parameterAddresses);
-                    message.parameterValues.push(invocationContext), batchArray.push({
-                        call: call,
-                        isBatching: !1,
-                        isStreaming: isStreaming,
-                        invocationIds: [message.invocationId],
-                        parameterValueSets: [message.parameterValues],
-                        functionName: message.functionName
-                    });
-                }, this_1 = this, i = 0; i < entryArray.length; i++)
-                    _loop_1(i);
-                return batchArray;
-            }, CustomFunctionProxy.prototype._invokeFunctionUsingInvoker = function (message) {
-                var _this = this, isCancelable = 0 != (1 & message.flags), isStreaming = 0 != (2 & message.flags), invocationId = message.invocationId, setResult = void 0, setError = void 0;
-                if (isStreaming)
-                    setResult = function (result) {
-                        _this._invocationContextMap[invocationId] && _this._setResult(invocationId, result);
-                    }, setError = function (error) {
-                        _this._invocationContextMap[invocationId] && _this._setError(invocationId, error.message, _this._getCustomFunctionResultErrorCodeFromErrorCode(error.code));
-                    };
-                else {
-                    var setResultCalled_1 = !1;
-                    setResult = function (result) {
-                        setResultCalled_1 || _this._setResult(invocationId, result), setResultCalled_1 = !0;
-                    }, setError = function (error) {
-                        setResultCalled_1 || _this._setError(invocationId, error.message, _this._getCustomFunctionResultErrorCodeFromErrorCode(error.code)),
-                            setResultCalled_1 = !0;
-                    };
-                }
-                var invocationContext = new InvocationContext(message.functionName, message.address, message.parameterAddresses, setResult, setError);
-                (isStreaming || isCancelable) && (this._invocationContextMap[invocationId] = invocationContext),
-                    this._invoker.invoke(message.functionName, message.parameterValues, invocationContext);
-            }, CustomFunctionProxy.prototype._ensureCustomFunctionMappingsUpperCase = function () {
-                if (_isNullOrUndefined(this._customFunctionMappingsUpperCase)) {
-                    if (this._customFunctionMappingsUpperCase = {}, "object" == typeof CustomFunctionMappings)
-                        for (var key in OfficeExtension.CoreUtility.log("CustomFunctionMappings.Keys=" + JSON.stringify(Object.keys(CustomFunctionMappings))),
-                            CustomFunctionMappings)
-                            this._customFunctionMappingsUpperCase[key.toUpperCase()] && CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionDuplicatedName, key),
-                                this._customFunctionMappingsUpperCase[key.toUpperCase()] = CustomFunctionMappings[key];
-                    if (this._association)
-                        for (var key in OfficeExtension.CoreUtility.log("CustomFunctionAssociateMappings.Keys=" + JSON.stringify(Object.keys(this._association.mappings))),
-                            this._association.mappings)
-                            this._customFunctionMappingsUpperCase[key.toUpperCase()] && CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionDuplicatedName, key),
-                                this._customFunctionMappingsUpperCase[key.toUpperCase()] = this._association.mappings[key];
-                }
-            }, CustomFunctionProxy.prototype._customFunctionMappingsContains = function (functionName) {
-                this._ensureCustomFunctionMappingsUpperCase();
-                var functionNameUpperCase = functionName.toUpperCase();
-                if (!_isNullOrUndefined(this._customFunctionMappingsUpperCase[functionNameUpperCase]))
-                    return !0;
-                if ("undefined" != typeof window) {
-                    for (var functionParent = window, functionNameSegments = functionName.split("."), i = 0; i < functionNameSegments.length - 1; i++)
-                        if (functionParent = functionParent[functionNameSegments[i]],
-                            _isNullOrUndefined(functionParent) || "object" != typeof functionParent)
-                            return !1;
-                    if ("function" == typeof functionParent[functionNameSegments[functionNameSegments.length - 1]])
-                        return !0;
-                }
-                return !1;
-            }, CustomFunctionProxy.prototype._getCustomFunctionMappings = function (functionName) {
-                this._ensureCustomFunctionMappingsUpperCase();
-                var functionNameUpperCase = functionName.toUpperCase();
-                if (!_isNullOrUndefined(this._customFunctionMappingsUpperCase[functionNameUpperCase])) {
-                    if ("function" == typeof this._customFunctionMappingsUpperCase[functionNameUpperCase])
-                        return this._customFunctionMappingsUpperCase[functionNameUpperCase];
-                    throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.invalidOperation, OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.customFunctionInvalidFunctionMapping, functionName), "CustomFunctionProxy._getCustomFunctionMappings");
-                }
-            }, CustomFunctionProxy.prototype._getFunction = function (functionName) {
-                var call = this._getCustomFunctionMappings(functionName);
-                if (!_isNullOrUndefined(call))
-                    return call;
-                if (_isNullOrUndefined(window))
-                    throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.invalidOperation, OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.customFunctionWindowMissing), "CustomFunctionProxy._getFunction");
-                for (var functionParent = window, functionNameSegments = functionName.split("."), i = 0; i < functionNameSegments.length - 1; i++)
-                    if (functionParent = functionParent[functionNameSegments[i]],
-                        _isNullOrUndefined(functionParent) || "object" != typeof functionParent)
-                        throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.invalidOperation, OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.customFunctionDefintionMissingOnWindow, functionName), "CustomFunctionProxy._getFunction");
-                if ("function" != typeof (call = functionParent[functionNameSegments[functionNameSegments.length - 1]]))
-                    throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.invalidOperation, OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.customFunctionInvalidFunction, functionName), "CustomFunctionProxy._getFunction");
-                return call;
-            }, CustomFunctionProxy.prototype._invokeRemainingBatchEntries = function (batchArray, startIndex) {
-                OfficeExtension.Utility.log("CustomFunctionProxy._invokeRemainingBatchEntries");
-                for (var startTimeMillis = Date.now(), i = startIndex; i < batchArray.length; i++) {
-                    if (!(Date.now() - startTimeMillis < this._batchQuotaMillis)) {
-                        OfficeExtension.Utility.log("setTimeout(CustomFunctionProxy._invokeRemainingBatchEntries)"),
-                            setTimeout(this._invokeRemainingBatchEntries.bind(this), 0, batchArray, i);
-                        break;
-                    }
-                    this._invokeFunctionAndSetResult(batchArray[i]);
-                }
-            }, CustomFunctionProxy.prototype._invokeFunctionAndSetResult = function (batch) {
-                var results, _this = this;
-                CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionStartLog, batch.functionName);
-                var startTime = Date.now();
-                try {
-                    results = batch.isBatching ? batch.call.call(null, batch.parameterValueSets) : [batch.call.apply(null, batch.parameterValueSets[0])];
-                }
-                catch (ex) {
-                    var outboundData_1 = [];
-                    outboundData_1.push(Date.now() - startTime);
-                    for (var i = 0; i < batch.invocationIds.length; i++)
-                        ex instanceof CustomFunctionError ? this._setErrorWithOutboundData(batch.invocationIds[i], ex.message, this._getCustomFunctionResultErrorCodeFromErrorCode(ex.code), outboundData_1) : this._setErrorWithOutboundData(batch.invocationIds[i], ex, 2, outboundData_1);
-                    return void CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionExceptionThrownLog, batch.functionName, CustomFunctionProxy.toLogMessage(ex));
-                }
-                var outboundData = [];
-                if (outboundData.push(Date.now() - startTime), batch.isStreaming)
-                    ;
-                else if (results.length === batch.parameterValueSets.length) {
-                    var _loop_2 = function (i) {
-                        _isNullOrUndefined(results[i]) || "object" != typeof results[i] || "function" != typeof results[i].then ? (CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionFinishLog, batch.functionName),
-                            this_2._setResultWithOutboundData(batch.invocationIds[i], results[i], outboundData)) : results[i].then((function (value) {
-                            CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionFinishLog, batch.functionName),
-                                _this._setResultWithOutboundData(batch.invocationIds[i], value, outboundData);
-                        }), (function (reason) {
-                            CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionRejectedPromoseLog, batch.functionName, CustomFunctionProxy.toLogMessage(reason)),
-                                reason instanceof CustomFunctionError ? _this._setErrorWithOutboundData(batch.invocationIds[i], reason, _this._getCustomFunctionResultErrorCodeFromErrorCode(reason.code), outboundData) : _this._setErrorWithOutboundData(batch.invocationIds[i], reason, 3, outboundData);
-                        }));
-                    }, this_2 = this;
-                    for (i = 0; i < results.length; i++)
-                        _loop_2(i);
-                }
-                else {
-                    CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionBatchMismatchLog, batch.functionName);
-                    for (i = 0; i < batch.invocationIds.length; i++)
-                        this._setErrorWithOutboundData(batch.invocationIds[i], OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.customFunctionUnexpectedNumberOfEntriesInResultBatch), 4, outboundData);
-                }
-            }, CustomFunctionProxy.prototype._setResult = function (invocationId, result) {
-                var outboundData = [];
-                outboundData.push(0), this._setResultWithOutboundData(invocationId, result, outboundData);
-            }, CustomFunctionProxy.prototype._setResultWithOutboundData = function (invocationId, result, outboundData) {
-                var invocationResult = {
-                    id: invocationId,
-                    value: result,
-                    outboundData: outboundData
-                };
-                "number" == typeof result ? isNaN(result) ? (invocationResult.failed = !0, invocationResult.value = "NaN") : isFinite(result) || (invocationResult.failed = !0,
-                    invocationResult.value = "Infinity", invocationResult.errorCode = 6) : result instanceof CustomFunctionError ? (invocationResult.failed = !1,
-                    invocationResult.value = {
-                        valueType: result.valueType,
-                        code: result.code,
-                        message: result.message
-                    }) : result instanceof Error && (invocationResult.failed = !0, invocationResult.value = CustomFunctionProxy.toLogMessage(result),
-                    invocationResult.errorCode = 0);
-                var timeNow = Date.now();
-                this._resultEntryBuffer[invocationId] = {
-                    timeCreated: timeNow,
-                    result: invocationResult
-                }, this._ensureSetResultsTaskIsScheduled(timeNow);
-            }, CustomFunctionProxy.prototype._setError = function (invocationId, error, errorCode) {
-                var outboundData = [];
-                outboundData.push(0), this._setErrorWithOutboundData(invocationId, error, errorCode, outboundData);
-            }, CustomFunctionProxy.prototype._setErrorWithOutboundData = function (invocationId, error, errorCode, outboundData) {
-                var message = "";
-                _isNullOrUndefined(error) || (error instanceof CustomFunctionError && !_isNullOrUndefined(error.message) ? message = error.message : "string" == typeof error && (message = error));
-                var result = {
-                    id: invocationId,
-                    failed: !0,
-                    value: message,
-                    errorCode: errorCode,
-                    outboundData: outboundData
-                }, timeNow = Date.now();
-                this._resultEntryBuffer[invocationId] = {
-                    timeCreated: timeNow,
-                    result: result
-                }, this._ensureSetResultsTaskIsScheduled(timeNow);
-            }, CustomFunctionProxy.prototype._getCustomFunctionResultErrorCodeFromErrorCode = function (errorCode) {
-                var internalCode;
-                switch (errorCode) {
-                    case ErrorCode.notAvailable:
-                        internalCode = 1;
-                        break;
-                    case ErrorCode.divisionByZero:
-                        internalCode = 5;
-                        break;
-                    case ErrorCode.invalidValue:
-                        internalCode = 7;
-                        break;
-                    case ErrorCode.invalidNumber:
-                        internalCode = 6;
-                        break;
-                    case ErrorCode.nullReference:
-                        internalCode = 8;
-                        break;
-                    default:
-                        internalCode = 7;
-                }
-                return internalCode;
-            }, CustomFunctionProxy.prototype._ensureSetResultsTaskIsScheduled = function (timeNow) {
-                if (this._setResultsTaskOverdueTime > 0 && timeNow > this._setResultsTaskOverdueTime)
-                    return OfficeExtension.Utility.log("SetResultsTask overdue"),
-                        void this._executeSetResultsTask();
-                this._isSetResultsTaskScheduled || (OfficeExtension.Utility.log("setTimeout(CustomFunctionProxy._executeSetResultsTask)"),
-                    setTimeout(this._executeSetResultsTask.bind(this), this._setResultsDelayMillis),
-                    this._isSetResultsTaskScheduled = !0, this._setResultsTaskOverdueTime = timeNow + this._setResultsDelayMillis + this._setResultsOverdueDelayMillis);
-            }, CustomFunctionProxy.prototype._convertCustomFunctionInvocationResultToArray = function (result) {
-                var ret = [];
-                return ret.push(result.id), ret.push(!result.failed), OfficeExtension.CoreUtility.isUndefined(result.value) ? ret.push(null) : ret.push(result.value),
-                    result.failed && (OfficeExtension.CoreUtility.isUndefined(result.errorCode) ? ret.push(0) : ret.push(result.errorCode)),
-                    OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.9") && ret.push(result.outboundData),
-                    ret;
-            }, CustomFunctionProxy.prototype._executeSetResultsTask = function () {
-                var _this = this;
-                OfficeExtension.Utility.log("CustomFunctionProxy._executeSetResultsTask");
-                var timeNow = Date.now();
-                if (this._inProgressContextSyncExpectedFinishTime > 0 && this._inProgressContextSyncExpectedFinishTime > timeNow)
-                    return OfficeExtension.Utility.log("context.sync() is in progress. setTimeout(CustomFunctionProxy._executeSetResultsTask)"),
-                        setTimeout(this._executeSetResultsTask.bind(this), this._setResultsDelayMillis),
-                        void (this._setResultsTaskOverdueTime = timeNow + this._setResultsDelayMillis + this._setResultsOverdueDelayMillis);
-                this._isSetResultsTaskScheduled = !1, this._setResultsTaskOverdueTime = 0;
-                var resultEntryBufferCopy = {}, isSizeRetry = !1;
-                CustomFunctions.isFeatureEnabled(1) && Object.keys(this._resultEntryRetryBuffer).length > 0 ? (resultEntryBufferCopy = this._resultEntryRetryBuffer,
-                    this._resultEntryRetryBuffer = {}, this._retryBufferBodySize = 2, isSizeRetry = !0) : (resultEntryBufferCopy = this._resultEntryBuffer,
-                    this._resultEntryBuffer = {});
-                var useArrayResult = OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.7"), invocationResults = [];
-                for (var key in resultEntryBufferCopy)
-                    useArrayResult ? invocationResults.push(this._convertCustomFunctionInvocationResultToArray(resultEntryBufferCopy[key].result)) : invocationResults.push(resultEntryBufferCopy[key].result);
-                if (0 !== invocationResults.length) {
-                    var context = new CustomFunctionRequestContext;
-                    useArrayResult ? context.customFunctions.setInvocationArrayResults(invocationResults) : context.customFunctions.setInvocationResults(invocationResults);
-                    var contextSyncStartTime = Date.now();
-                    this._inProgressContextSyncExpectedFinishTime = contextSyncStartTime + this._maxContextSyncExecutionDurationMills,
-                        context.sync().then((function (value) {
-                            var timeNow = Date.now();
-                            _this._clearInProgressContextSyncExpectedFinishTimeAfterMinInterval(timeNow - contextSyncStartTime),
-                                isSizeRetry && _this._ensureSetResultsTaskIsScheduled(timeNow);
-                        }), (function (reason) {
-                            var timeNow = Date.now();
-                            _this._clearInProgressContextSyncExpectedFinishTimeAfterMinInterval(timeNow - contextSyncStartTime),
-                                CustomFunctions.isFeatureEnabled(1) && reason.code == OfficeExtension.ErrorCodes.requestPayloadSizeLimitExceeded ? _this._restoreAndSliceResultEntries(timeNow, resultEntryBufferCopy) : _this._restoreResultEntries(timeNow, resultEntryBufferCopy),
-                                _this._ensureSetResultsTaskIsScheduled(timeNow);
-                        }));
-                }
-            }, CustomFunctionProxy.prototype._restoreResultEntries = function (timeNow, resultEntryBufferCopy) {
-                for (var key in resultEntryBufferCopy) {
-                    var resultSetter = resultEntryBufferCopy[key];
-                    timeNow - resultSetter.timeCreated <= this._setResultsLifeMillis && (this._resultEntryBuffer[key] || (this._resultEntryBuffer[key] = resultSetter));
-                }
-            }, CustomFunctionProxy.prototype._restoreAndSliceResultEntries = function (timeNow, resultEntryBufferCopy) {
-                for (var key in resultEntryBufferCopy) {
-                    var resultSetter = resultEntryBufferCopy[key], resultSize = void 0;
-                    if (timeNow - resultSetter.timeCreated <= this._setResultsLifeMillis && !this._resultEntryBuffer[key]) {
-                        try {
-                            resultSize = JSON.stringify(this._convertCustomFunctionInvocationResultToArray(resultSetter.result)).length + 1;
-                        }
-                        catch (ex) {
-                            this._resultEntryBuffer[key] = resultSetter, OfficeExtension.Utility.log("Result can't pass in JSON.stringify");
-                            continue;
-                        }
-                        this._retryBufferBodySize + resultSize < this._maxResultSize ? (this._resultEntryRetryBuffer[key] = resultSetter,
-                            this._retryBufferBodySize += resultSize) : this._resultEntryBuffer[key] = resultSetter;
-                    }
-                }
-            }, CustomFunctionProxy.prototype._clearInProgressContextSyncExpectedFinishTimeAfterMinInterval = function (lastContextSyncDurationMills) {
-                var _this = this, interval = Math.max(this._minContextSyncIntervalMills, 2 * lastContextSyncDurationMills);
-                OfficeExtension.Utility.log("setTimeout(clearInProgressContestSyncExpectedFinishedTime," + interval + ")"),
-                    setTimeout((function () {
-                        OfficeExtension.Utility.log("clearInProgressContestSyncExpectedFinishedTime"), _this._inProgressContextSyncExpectedFinishTime = 0;
-                    }), interval);
-            }, CustomFunctionProxy.CustomFunctionExecutionStartLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Verbose, "CustomFunctions [Execution] [Begin] Function="),
-                CustomFunctionProxy.CustomFunctionExecutionFailureLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] Function="),
-                CustomFunctionProxy.CustomFunctionExecutionRejectedPromoseLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] [RejectedPromise] Function="),
-                CustomFunctionProxy.CustomFunctionExecutionExceptionThrownLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] [ExceptionThrown] Function="),
-                CustomFunctionProxy.CustomFunctionExecutionBatchMismatchLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] [BatchMismatch] Function="),
-                CustomFunctionProxy.CustomFunctionExecutionFinishLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Info, "CustomFunctions [Execution] [End] [Success] Function="),
-                CustomFunctionProxy.CustomFunctionExecutionNotFoundLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [NotFound] Function="),
-                CustomFunctionProxy.CustomFunctionCancellation = new CustomFunctionLog(CustomFunctionLoggingSeverity.Info, "CustomFunctions [Cancellation] Function="),
-                CustomFunctionProxy.CustomFunctionAlreadyCancelled = new CustomFunctionLog(CustomFunctionLoggingSeverity.Info, "CustomFunctions [AlreadyCancelled] Function="),
-                CustomFunctionProxy.CustomFunctionDuplicatedName = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [DuplicatedName] Function="),
-                CustomFunctionProxy.CustomFunctionInvalidArg = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [InvalidArg] Name="),
-                CustomFunctionProxy;
-        }();
-        exports.CustomFunctionProxy = CustomFunctionProxy, exports.customFunctionProxy = new CustomFunctionProxy,
-            exports.setCustomFunctionAssociation = exports.customFunctionProxy.setCustomFunctionAssociation.bind(exports.customFunctionProxy),
-            exports.setCustomFunctionInvoker = exports.customFunctionProxy.setCustomFunctionInvoker.bind(exports.customFunctionProxy),
-            Core.HostBridge.onInited((function (hostBridge) {
-                exports.customFunctionProxy._initFromHostBridge(hostBridge);
-            }));
-        var CustomFunctions = function (_super) {
-            function CustomFunctions() {
-                return null !== _super && _super.apply(this, arguments) || this;
-            }
-            return __extends(CustomFunctions, _super), Object.defineProperty(CustomFunctions.prototype, "_className", {
-                get: function () {
-                    return "CustomFunctions";
-                },
-                enumerable: !1,
-                configurable: !0
-            }), CustomFunctions.isFeatureEnabled = function (args) {
-                return this._enabledFeature instanceof Array && this._enabledFeature.indexOf(args) >= 0;
-            }, CustomFunctions.initialize = function () {
-                var _this = this, context = new CustomFunctionRequestContext;
-                return exports.customFunctionProxy.ensureInit(context).then((function () {
-                    var enabledFeature;
-                    return context.customFunctions._SetOsfControlContainerReadyForCustomFunctions(),
-                        OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.9") && (enabledFeature = context.customFunctions._GetEnabledFeatures()),
-                        OfficeExtension.Utility.log("OsfControl activation lifecycle: Set OsfControlContainer ready for CustomFunctions"),
-                        context._customData = "SetOsfControlContainerReadyForCustomFunctions", context.sync().then((function () {
-                        _isNullOrUndefined(enabledFeature) || (_this._enabledFeature = enabledFeature.value);
-                    }))["catch"]((function (error) {
-                        !function (error, rethrowOtherError) {
-                            var isCellEditModeError = error instanceof OfficeExtension.Error && error.code === CustomFunctionRuntimeErrorCode.invalidOperationInCellEditMode;
-                            if (OfficeExtension.CoreUtility.log("Error on starting custom functions: " + error),
-                                isCellEditModeError) {
-                                OfficeExtension.CoreUtility.log("Was in cell-edit mode, will try again");
-                                var delay_1 = exports.customFunctionProxy._ensureInitRetryDelayMillis;
-                                return new OfficeExtension.CoreUtility.Promise((function (resolve) {
-                                    return setTimeout(resolve, delay_1);
-                                })).then((function () {
-                                    return CustomFunctions.initialize();
-                                }));
-                            }
-                            if (rethrowOtherError)
-                                throw error;
-                        }(error, !0);
-                    }));
-                }));
-            }, CustomFunctions.prototype.setInvocationArrayResults = function (results) {
-                _throwIfApiNotSupported("CustomFunctions.setInvocationArrayResults", "CustomFunctions", "1.4", "Excel"),
-                    _invokeMethod(this, "SetInvocationArrayResults", 0, [results], 2, 0);
-            }, CustomFunctions.prototype.setInvocationResults = function (results) {
-                _invokeMethod(this, "SetInvocationResults", 0, [results], 2, 0);
-            }, CustomFunctions.prototype._GetEnabledFeatures = function () {
-                return _throwIfApiNotSupported("CustomFunctions._GetEnabledFeatures", "CustomFunctions", "1.4", "Excel"),
-                    _invokeMethod(this, "_GetEnabledFeatures", 1, [], 4, 0);
-            }, CustomFunctions.prototype._SetInvocationError = function (invocationId, message) {
-                _invokeMethod(this, "_SetInvocationError", 0, [invocationId, message], 2, 0);
-            }, CustomFunctions.prototype._SetInvocationResult = function (invocationId, result) {
-                _invokeMethod(this, "_SetInvocationResult", 0, [invocationId, result], 2, 0);
-            }, CustomFunctions.prototype._SetOsfControlContainerReadyForCustomFunctions = function () {
-                _invokeMethod(this, "_SetOsfControlContainerReadyForCustomFunctions", 0, [], 10, 0);
-            }, CustomFunctions.prototype._handleResult = function (value) {
-                (_super.prototype._handleResult.call(this, value), _isNullOrUndefined(value)) || _fixObjectPathIfNecessary(this, value);
-            }, CustomFunctions.prototype._handleRetrieveResult = function (value, result) {
-                _super.prototype._handleRetrieveResult.call(this, value, result), _processRetrieveResult(this, value, result);
-            }, CustomFunctions.newObject = function (context) {
-                return _createTopLevelServiceObject(CustomFunctions, context, "Microsoft.ExcelServices.CustomFunctions", !1, 4);
-            }, CustomFunctions.prototype.toJSON = function () {
-                return _toJson(this, {}, {});
-            }, CustomFunctions;
-        }(OfficeExtension.ClientObject);
-        exports.CustomFunctions = CustomFunctions;
-        var CustomFunctionRuntimeErrorCode, CustomFunctionsContainer = function (_super) {
-            function CustomFunctionsContainer() {
-                return null !== _super && _super.apply(this, arguments) || this;
-            }
-            return __extends(CustomFunctionsContainer, _super), Object.defineProperty(CustomFunctionsContainer.prototype, "_className", {
-                get: function () {
-                    return "CustomFunctionsContainer";
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Object.defineProperty(CustomFunctionsContainer.prototype, "_navigationPropertyNames", {
-                get: function () {
-                    return ["customFunctions"];
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Object.defineProperty(CustomFunctionsContainer.prototype, "customFunctions", {
-                get: function () {
-                    return _throwIfApiNotSupported("CustomFunctionsContainer.customFunctions", "CustomFunctions", "1.2", "Excel"),
-                        this._C || (this._C = _createPropertyObject(CustomFunctions, this, "CustomFunctions", !1, 4)),
-                        this._C;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), CustomFunctionsContainer.prototype._handleResult = function (value) {
-                if (_super.prototype._handleResult.call(this, value), !_isNullOrUndefined(value)) {
-                    var obj = value;
-                    _fixObjectPathIfNecessary(this, obj), _handleNavigationPropertyResults(this, obj, ["customFunctions", "CustomFunctions"]);
-                }
-            }, CustomFunctionsContainer.prototype.load = function (options) {
-                return _load(this, options);
-            }, CustomFunctionsContainer.prototype._handleRetrieveResult = function (value, result) {
-                _super.prototype._handleRetrieveResult.call(this, value, result), _processRetrieveResult(this, value, result);
-            }, CustomFunctionsContainer.prototype.toJSON = function () {
-                return _toJson(this, {}, {});
-            }, CustomFunctionsContainer;
-        }(OfficeExtension.ClientObject);
-        exports.CustomFunctionsContainer = CustomFunctionsContainer, function (CustomFunctionRuntimeErrorCode) {
-            CustomFunctionRuntimeErrorCode.generalException = "GeneralException", CustomFunctionRuntimeErrorCode.invalidOperation = "InvalidOperation",
-                CustomFunctionRuntimeErrorCode.invalidOperationInCellEditMode = "InvalidOperationInCellEditMode";
-        }(CustomFunctionRuntimeErrorCode || (CustomFunctionRuntimeErrorCode = {}));
-    }]);
+}
+
 OSFAriaLogger.AriaLogger.EnableSendingTelemetryWithOTel = true;
-OSFAriaLogger.AriaLogger.EnableSendingTelemetryWithLegacyAria = false;
-window.OfficeExtensionBatch = window.OfficeExtension;
-!function (modules) {
+OSFAriaLogger.AriaLogger.EnableSendingTelemetryWithLegacyAria = false;!function(modules) {
     var installedModules = {};
     function __webpack_require__(moduleId) {
-        if (installedModules[moduleId])
-            return installedModules[moduleId].exports;
+        if (installedModules[moduleId]) return installedModules[moduleId].exports;
         var module = installedModules[moduleId] = {
             i: moduleId,
             l: !1,
             exports: {}
         };
-        return modules[moduleId].call(module.exports, module, module.exports, __webpack_require__),
-            module.l = !0, module.exports;
+        return modules[moduleId].call(module.exports, module, module.exports, __webpack_require__), 
+        module.l = !0, module.exports;
     }
-    __webpack_require__.m = modules, __webpack_require__.c = installedModules, __webpack_require__.d = function (exports, name, getter) {
+    __webpack_require__.m = modules, __webpack_require__.c = installedModules, __webpack_require__.d = function(exports, name, getter) {
         __webpack_require__.o(exports, name) || Object.defineProperty(exports, name, {
             enumerable: !0,
             get: getter
         });
-    }, __webpack_require__.r = function (exports) {
+    }, __webpack_require__.r = function(exports) {
         "undefined" != typeof Symbol && Symbol.toStringTag && Object.defineProperty(exports, Symbol.toStringTag, {
             value: "Module"
         }), Object.defineProperty(exports, "__esModule", {
             value: !0
         });
-    }, __webpack_require__.t = function (value, mode) {
-        if (1 & mode && (value = __webpack_require__(value)), 8 & mode)
-            return value;
-        if (4 & mode && "object" == typeof value && value && value.__esModule)
-            return value;
+    }, __webpack_require__.t = function(value, mode) {
+        if (1 & mode && (value = __webpack_require__(value)), 8 & mode) return value;
+        if (4 & mode && "object" == typeof value && value && value.__esModule) return value;
         var ns = Object.create(null);
         if (__webpack_require__.r(ns), Object.defineProperty(ns, "default", {
             enumerable: !0,
             value: value
-        }), 2 & mode && "string" != typeof value)
-            for (var key in value)
-                __webpack_require__.d(ns, key, function (key) {
-                    return value[key];
-                }.bind(null, key));
+        }), 2 & mode && "string" != typeof value) for (var key in value) __webpack_require__.d(ns, key, function(key) {
+            return value[key];
+        }.bind(null, key));
         return ns;
-    }, __webpack_require__.n = function (module) {
-        var getter = module && module.__esModule ? function () {
-            return module["default"];
-        } : function () {
+    }, __webpack_require__.n = function(module) {
+        var getter = module && module.__esModule ? function() {
+            return module.default;
+        } : function() {
             return module;
         };
         return __webpack_require__.d(getter, "a", getter), getter;
-    }, __webpack_require__.o = function (object, property) {
+    }, __webpack_require__.o = function(object, property) {
         return Object.prototype.hasOwnProperty.call(object, property);
     }, __webpack_require__.p = "", __webpack_require__(__webpack_require__.s = 1);
-}([function (module, exports) {
-        module.exports = OfficeExtensionBatch;
-    }, function (module, exports, __webpack_require__) {
+}([ function(module, exports) {
+    module.exports = OfficeExtensionBatch;
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), __webpack_require__(2), "undefined" == typeof CustomFunctionMappings && (window.CustomFunctionMappings = {}), 
+    "undefined" == typeof Promise && (window.Promise = Office.Promise), window.OfficeExtensionBatch = window.OfficeExtensionBatch || window.OfficeExtension;
+    var customfunctions_agave_initialize_1 = __webpack_require__(3);
+    !function() {
+        var shouldInitialize = !1;
+        "undefined" != typeof OSF && OSF._OfficeAppFactory && OSF._OfficeAppFactory.getHostInfo && (0 != (2 & (OSF._OfficeAppFactory && OSF._OfficeAppFactory.getHostInfo().flags)) && (shouldInitialize = !0));
+        (0, customfunctions_agave_initialize_1.default)(shouldInitialize);
+    }();
+}, function(module, exports) {
+    !function(self) {
         "use strict";
-        var __assign = this && this.__assign || function () {
-            return (__assign = Object.assign || function (t) {
-                for (var s, i = 1, n = arguments.length; i < n; i++)
-                    for (var p in s = arguments[i])
-                        Object.prototype.hasOwnProperty.call(s, p) && (t[p] = s[p]);
-                return t;
-            }).apply(this, arguments);
+        if (!self.fetch) {
+            var support_searchParams = "URLSearchParams" in self, support_iterable = "Symbol" in self && "iterator" in Symbol, support_blob = "FileReader" in self && "Blob" in self && function() {
+                try {
+                    return new Blob, !0;
+                } catch (e) {
+                    return !1;
+                }
+            }(), support_formData = "FormData" in self, support_arrayBuffer = "ArrayBuffer" in self;
+            if (support_arrayBuffer) var viewClasses = [ "[object Int8Array]", "[object Uint8Array]", "[object Uint8ClampedArray]", "[object Int16Array]", "[object Uint16Array]", "[object Int32Array]", "[object Uint32Array]", "[object Float32Array]", "[object Float64Array]" ], isDataView = function(obj) {
+                return obj && DataView.prototype.isPrototypeOf(obj);
+            }, isArrayBufferView = ArrayBuffer.isView || function(obj) {
+                return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1;
+            };
+            Headers.prototype.append = function(name, value) {
+                name = normalizeName(name), value = normalizeValue(value);
+                var oldValue = this.map[name];
+                this.map[name] = oldValue ? oldValue + "," + value : value;
+            }, Headers.prototype.delete = function(name) {
+                delete this.map[normalizeName(name)];
+            }, Headers.prototype.get = function(name) {
+                return name = normalizeName(name), this.has(name) ? this.map[name] : null;
+            }, Headers.prototype.has = function(name) {
+                return this.map.hasOwnProperty(normalizeName(name));
+            }, Headers.prototype.set = function(name, value) {
+                this.map[normalizeName(name)] = normalizeValue(value);
+            }, Headers.prototype.forEach = function(callback, thisArg) {
+                for (var name in this.map) this.map.hasOwnProperty(name) && callback.call(thisArg, this.map[name], name, this);
+            }, Headers.prototype.keys = function() {
+                var items = [];
+                return this.forEach((function(value, name) {
+                    items.push(name);
+                })), iteratorFor(items);
+            }, Headers.prototype.values = function() {
+                var items = [];
+                return this.forEach((function(value) {
+                    items.push(value);
+                })), iteratorFor(items);
+            }, Headers.prototype.entries = function() {
+                var items = [];
+                return this.forEach((function(value, name) {
+                    items.push([ name, value ]);
+                })), iteratorFor(items);
+            }, support_iterable && (Headers.prototype[Symbol.iterator] = Headers.prototype.entries);
+            var methods = [ "DELETE", "GET", "HEAD", "OPTIONS", "POST", "PUT" ];
+            Request.prototype.clone = function() {
+                return new Request(this, {
+                    body: this._bodyInit
+                });
+            }, Body.call(Request.prototype), Body.call(Response.prototype), Response.prototype.clone = function() {
+                return new Response(this._bodyInit, {
+                    status: this.status,
+                    statusText: this.statusText,
+                    headers: new Headers(this.headers),
+                    url: this.url
+                });
+            }, Response.error = function() {
+                var response = new Response(null, {
+                    status: 0,
+                    statusText: ""
+                });
+                return response.type = "error", response;
+            };
+            var redirectStatuses = [ 301, 302, 303, 307, 308 ];
+            Response.redirect = function(url, status) {
+                if (-1 === redirectStatuses.indexOf(status)) throw new RangeError("Invalid status code");
+                return new Response(null, {
+                    status: status,
+                    headers: {
+                        location: url
+                    }
+                });
+            }, self.Headers = Headers, self.Request = Request, self.Response = Response, self.fetch = function(input, init) {
+                return new Promise((function(resolve, reject) {
+                    var request = new Request(input, init), xhr = new XMLHttpRequest;
+                    xhr.onload = function() {
+                        var rawHeaders, headers, options = {
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            headers: (rawHeaders = xhr.getAllResponseHeaders() || "", headers = new Headers, 
+                            rawHeaders.split(/\r?\n/).forEach((function(line) {
+                                var parts = line.split(":"), key = parts.shift().trim();
+                                if (key) {
+                                    var value = parts.join(":").trim();
+                                    headers.append(key, value);
+                                }
+                            })), headers)
+                        };
+                        options.url = "responseURL" in xhr ? xhr.responseURL : options.headers.get("X-Request-URL");
+                        var body = "response" in xhr ? xhr.response : xhr.responseText;
+                        resolve(new Response(body, options));
+                    }, xhr.onerror = function() {
+                        reject(new TypeError("Network request failed"));
+                    }, xhr.ontimeout = function() {
+                        reject(new TypeError("Network request failed"));
+                    }, xhr.open(request.method, request.url, !0), "include" === request.credentials && (xhr.withCredentials = !0), 
+                    "responseType" in xhr && support_blob && (xhr.responseType = "blob"), request.headers.forEach((function(value, name) {
+                        xhr.setRequestHeader(name, value);
+                    })), xhr.send(void 0 === request._bodyInit ? null : request._bodyInit);
+                }));
+            }, self.fetch.polyfill = !0;
+        }
+        function normalizeName(name) {
+            if ("string" != typeof name && (name = String(name)), /[^a-z0-9\-#$%&'*+.\^_`|~]/i.test(name)) throw new TypeError("Invalid character in header field name");
+            return name.toLowerCase();
+        }
+        function normalizeValue(value) {
+            return "string" != typeof value && (value = String(value)), value;
+        }
+        function iteratorFor(items) {
+            var iterator = {
+                next: function() {
+                    var value = items.shift();
+                    return {
+                        done: void 0 === value,
+                        value: value
+                    };
+                }
+            };
+            return support_iterable && (iterator[Symbol.iterator] = function() {
+                return iterator;
+            }), iterator;
+        }
+        function Headers(headers) {
+            this.map = {}, headers instanceof Headers ? headers.forEach((function(value, name) {
+                this.append(name, value);
+            }), this) : Array.isArray(headers) ? headers.forEach((function(header) {
+                this.append(header[0], header[1]);
+            }), this) : headers && Object.getOwnPropertyNames(headers).forEach((function(name) {
+                this.append(name, headers[name]);
+            }), this);
+        }
+        function consumed(body) {
+            if (body.bodyUsed) return Promise.reject(new TypeError("Already read"));
+            body.bodyUsed = !0;
+        }
+        function fileReaderReady(reader) {
+            return new Promise((function(resolve, reject) {
+                reader.onload = function() {
+                    resolve(reader.result);
+                }, reader.onerror = function() {
+                    reject(reader.error);
+                };
+            }));
+        }
+        function readBlobAsArrayBuffer(blob) {
+            var reader = new FileReader, promise = fileReaderReady(reader);
+            return reader.readAsArrayBuffer(blob), promise;
+        }
+        function bufferClone(buf) {
+            if (buf.slice) return buf.slice(0);
+            var view = new Uint8Array(buf.byteLength);
+            return view.set(new Uint8Array(buf)), view.buffer;
+        }
+        function Body() {
+            return this.bodyUsed = !1, this._initBody = function(body) {
+                if (this._bodyInit = body, body) if ("string" == typeof body) this._bodyText = body; else if (support_blob && Blob.prototype.isPrototypeOf(body)) this._bodyBlob = body; else if (support_formData && FormData.prototype.isPrototypeOf(body)) this._bodyFormData = body; else if (support_searchParams && URLSearchParams.prototype.isPrototypeOf(body)) this._bodyText = body.toString(); else if (support_arrayBuffer && support_blob && isDataView(body)) this._bodyArrayBuffer = bufferClone(body.buffer), 
+                this._bodyInit = new Blob([ this._bodyArrayBuffer ]); else {
+                    if (!support_arrayBuffer || !ArrayBuffer.prototype.isPrototypeOf(body) && !isArrayBufferView(body)) throw new Error("unsupported BodyInit type");
+                    this._bodyArrayBuffer = bufferClone(body);
+                } else this._bodyText = "";
+                this.headers.get("content-type") || ("string" == typeof body ? this.headers.set("content-type", "text/plain;charset=UTF-8") : this._bodyBlob && this._bodyBlob.type ? this.headers.set("content-type", this._bodyBlob.type) : support_searchParams && URLSearchParams.prototype.isPrototypeOf(body) && this.headers.set("content-type", "application/x-www-form-urlencoded;charset=UTF-8"));
+            }, support_blob && (this.blob = function() {
+                var rejected = consumed(this);
+                if (rejected) return rejected;
+                if (this._bodyBlob) return Promise.resolve(this._bodyBlob);
+                if (this._bodyArrayBuffer) return Promise.resolve(new Blob([ this._bodyArrayBuffer ]));
+                if (this._bodyFormData) throw new Error("could not read FormData body as blob");
+                return Promise.resolve(new Blob([ this._bodyText ]));
+            }, this.arrayBuffer = function() {
+                return this._bodyArrayBuffer ? consumed(this) || Promise.resolve(this._bodyArrayBuffer) : this.blob().then(readBlobAsArrayBuffer);
+            }), this.text = function() {
+                var blob, reader, promise, rejected = consumed(this);
+                if (rejected) return rejected;
+                if (this._bodyBlob) return blob = this._bodyBlob, reader = new FileReader, promise = fileReaderReady(reader), 
+                reader.readAsText(blob), promise;
+                if (this._bodyArrayBuffer) return Promise.resolve(function(buf) {
+                    for (var view = new Uint8Array(buf), chars = new Array(view.length), i = 0; i < view.length; i++) chars[i] = String.fromCharCode(view[i]);
+                    return chars.join("");
+                }(this._bodyArrayBuffer));
+                if (this._bodyFormData) throw new Error("could not read FormData body as text");
+                return Promise.resolve(this._bodyText);
+            }, support_formData && (this.formData = function() {
+                return this.text().then(decode);
+            }), this.json = function() {
+                return this.text().then(JSON.parse);
+            }, this;
+        }
+        function Request(input, options) {
+            var method, upcased, body = (options = options || {}).body;
+            if (input instanceof Request) {
+                if (input.bodyUsed) throw new TypeError("Already read");
+                this.url = input.url, this.credentials = input.credentials, options.headers || (this.headers = new Headers(input.headers)), 
+                this.method = input.method, this.mode = input.mode, body || null == input._bodyInit || (body = input._bodyInit, 
+                input.bodyUsed = !0);
+            } else this.url = String(input);
+            if (this.credentials = options.credentials || this.credentials || "omit", !options.headers && this.headers || (this.headers = new Headers(options.headers)), 
+            this.method = (method = options.method || this.method || "GET", upcased = method.toUpperCase(), 
+            methods.indexOf(upcased) > -1 ? upcased : method), this.mode = options.mode || this.mode || null, 
+            this.referrer = null, ("GET" === this.method || "HEAD" === this.method) && body) throw new TypeError("Body not allowed for GET or HEAD requests");
+            this._initBody(body);
+        }
+        function decode(body) {
+            var form = new FormData;
+            return body.trim().split("&").forEach((function(bytes) {
+                if (bytes) {
+                    var split = bytes.split("="), name = split.shift().replace(/\+/g, " "), value = split.join("=").replace(/\+/g, " ");
+                    form.append(decodeURIComponent(name), decodeURIComponent(value));
+                }
+            })), form;
+        }
+        function Response(bodyInit, options) {
+            options || (options = {}), this.type = "default", this.status = "status" in options ? options.status : 200, 
+            this.ok = this.status >= 200 && this.status < 300, this.statusText = "statusText" in options ? options.statusText : "OK", 
+            this.headers = new Headers(options.headers), this.url = options.url || "", this._initBody(bodyInit);
+        }
+    }("undefined" != typeof self ? self : this);
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    });
+    var CFRuntime = __webpack_require__(4);
+    exports.default = function(shouldInitRuntime) {
+        function documentReadyCallback() {
+            Office.onReady((function(hostInfo) {
+                hostInfo.host === Office.HostType.Excel ? function initializeCustomFunctionsOrDelay() {
+                    CustomFunctionMappings && CustomFunctionMappings.__delay__ ? setTimeout(initializeCustomFunctionsOrDelay, 50) : CFRuntime.CustomFunctions.initialize();
+                }() : console.warn("Warning: Expected to be loaded inside of an Excel add-in.");
+            }));
+        }
+        window.CustomFunctions = window.CustomFunctions || {}, window.CustomFunctions.setCustomFunctionInvoker = CFRuntime.setCustomFunctionInvoker, 
+        window.CustomFunctions.Error = CFRuntime.CustomFunctionError, window.CustomFunctions.ErrorCode = CFRuntime.ErrorCode, 
+        window.CustomFunctions.FormattedNumber = CFRuntime.CustomFunctionFormattedNumber, 
+        window.CustomFunctions.Entity = CFRuntime.CustomFunctionEntity, window.CustomFunctions.WebImage = CFRuntime.CustomFunctionWebImage, 
+        window.CustomFunctions.Attribution = CFRuntime.CustomFunctionAttribution, window.CustomFunctions.Provider = CFRuntime.CustomFunctionProvider, 
+        CFRuntime.setCustomFunctionAssociation(window.CustomFunctions._association), shouldInitRuntime && ("loading" === document.readyState ? document.addEventListener("DOMContentLoaded", documentReadyCallback) : documentReadyCallback());
+    };
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    var extendStatics, __extends = this && this.__extends || (extendStatics = function(d, b) {
+        return (extendStatics = Object.setPrototypeOf || {
+            __proto__: []
+        } instanceof Array && function(d, b) {
+            d.__proto__ = b;
+        } || function(d, b) {
+            for (var p in b) Object.prototype.hasOwnProperty.call(b, p) && (d[p] = b[p]);
+        })(d, b);
+    }, function(d, b) {
+        if ("function" != typeof b && null !== b) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        function __() {
+            this.constructor = d;
+        }
+        extendStatics(d, b), d.prototype = null === b ? Object.create(b) : (__.prototype = b.prototype, 
+        new __);
+    });
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.CustomFunctionsContainer = exports.CustomFunctions = exports.setCustomFunctionInvoker = exports.setCustomFunctionAssociation = exports.customFunctionProxy = exports.CustomFunctionProxy = exports.CreateCustomFunctionInstance = exports.CustomFunctionProvider = exports.CustomFunctionAttribution = exports.CustomFunctionWebImage = exports.CustomFunctionFormattedNumber = exports.CustomFunctionEntity = exports.CustomFunctionError = exports.ErrorCode = exports.InvocationContext = exports.Script = void 0;
+    var OfficeExtension = __webpack_require__(0), Core = __webpack_require__(0), _createPropertyObject = OfficeExtension.BatchApiHelper.createPropertyObject, _createRootServiceObject = (OfficeExtension.BatchApiHelper.createMethodObject, 
+    OfficeExtension.BatchApiHelper.createIndexerObject, OfficeExtension.BatchApiHelper.createRootServiceObject), _createTopLevelServiceObject = OfficeExtension.BatchApiHelper.createTopLevelServiceObject, _invokeMethod = (OfficeExtension.BatchApiHelper.createChildItemObject, 
+    OfficeExtension.BatchApiHelper.invokeMethod), _isNullOrUndefined = (OfficeExtension.BatchApiHelper.invokeEnsureUnchanged, 
+    OfficeExtension.BatchApiHelper.invokeSetProperty, OfficeExtension.Utility.isNullOrUndefined), _throwIfApiNotSupported = (OfficeExtension.Utility.isUndefined, 
+    OfficeExtension.Utility.throwIfNotLoaded, OfficeExtension.Utility.throwIfApiNotSupported), _load = OfficeExtension.Utility.load, _toJson = (OfficeExtension.Utility.retrieve, 
+    OfficeExtension.Utility.toJson), _fixObjectPathIfNecessary = OfficeExtension.Utility.fixObjectPathIfNecessary, _handleNavigationPropertyResults = OfficeExtension.Utility._handleNavigationPropertyResults, _processRetrieveResult = (OfficeExtension.Utility.adjustToDateTime, 
+    OfficeExtension.Utility.processRetrieveResult), CustomFunctionRequestContext = (OfficeExtension.Utility.setMockData, 
+    OfficeExtension.CommonUtility.calculateApiFlags, function(_super) {
+        function CustomFunctionRequestContext(requestInfo) {
+            var _this = _super.call(this, requestInfo) || this;
+            return _this.m_customFunctions = CustomFunctions.newObject(_this), _this.m_container = _createRootServiceObject(CustomFunctionsContainer, _this), 
+            _this._rootObject = _this.m_container, _this._rootObjectPropertyName = "customFunctionsContainer", 
+            _this._requestFlagModifier = 2176, _this;
+        }
+        return __extends(CustomFunctionRequestContext, _super), Object.defineProperty(CustomFunctionRequestContext.prototype, "customFunctions", {
+            get: function() {
+                return this.m_customFunctions;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Object.defineProperty(CustomFunctionRequestContext.prototype, "customFunctionsContainer", {
+            get: function() {
+                return this.m_container;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), CustomFunctionRequestContext.prototype._processOfficeJsErrorResponse = function(officeJsErrorCode, response) {
+            5004 === officeJsErrorCode && (response.ErrorCode = CustomFunctionRuntimeErrorCode.invalidOperationInCellEditMode, 
+            response.ErrorMessage = OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.invalidOperationInCellEditMode));
+        }, CustomFunctionRequestContext;
+    }(OfficeExtension.ClientRequestContext));
+    exports.Script = {
+        _CustomFunctionMetadata: {}
+    };
+    var CustomFunctionLoggingSeverity, InvocationContext = function() {
+        function InvocationContext(functionName, address, parameterAddresses, setResultHandler, setErrorHandler) {
+            this._functionName = functionName, _isNullOrUndefined(address) || (this._address = address), 
+            _isNullOrUndefined(parameterAddresses) || (this._parameterAddresses = parameterAddresses), 
+            this.setResult = setResultHandler, this.setError = setErrorHandler;
+        }
+        return Object.defineProperty(InvocationContext.prototype, "onCanceled", {
+            get: function() {
+                if (!_isNullOrUndefined(this._onCanceled) && "function" == typeof this._onCanceled) return this._onCanceled;
+            },
+            set: function(handler) {
+                this._onCanceled = handler;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Object.defineProperty(InvocationContext.prototype, "functionName", {
+            get: function() {
+                return this._functionName;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Object.defineProperty(InvocationContext.prototype, "address", {
+            get: function() {
+                return this._address;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Object.defineProperty(InvocationContext.prototype, "parameterAddresses", {
+            get: function() {
+                return this._parameterAddresses;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), InvocationContext;
+    }();
+    exports.InvocationContext = InvocationContext, function(CustomFunctionLoggingSeverity) {
+        CustomFunctionLoggingSeverity.Info = "Medium", CustomFunctionLoggingSeverity.Error = "Unexpected", 
+        CustomFunctionLoggingSeverity.Verbose = "Verbose";
+    }(CustomFunctionLoggingSeverity || (CustomFunctionLoggingSeverity = {}));
+    var ErrorCode, CustomFunctionLog = function(Severity, Message) {
+        this.Severity = Severity, this.Message = Message;
+    }, CustomFunctionsLogger = function() {
+        function CustomFunctionsLogger() {}
+        return CustomFunctionsLogger.logEvent = function(log, data, data2) {
+            if (CustomFunctionsLogger.s_shouldLog || OfficeExtension.CoreUtility._logEnabled) {
+                var logMessage = log.Severity + " " + log.Message + data;
+                if (data2 && (logMessage = logMessage + " " + data2), OfficeExtension.Utility.log(logMessage), 
+                CustomFunctionsLogger.s_shouldLog) switch (log.Severity) {
+                  case CustomFunctionLoggingSeverity.Verbose:
+                    null !== console.log && console.log(logMessage);
+                    break;
+
+                  case CustomFunctionLoggingSeverity.Info:
+                    null !== console.info && console.info(logMessage);
+                    break;
+
+                  case CustomFunctionLoggingSeverity.Error:
+                    null !== console.error && console.error(logMessage);
+                }
+            }
+        }, CustomFunctionsLogger.shouldLog = function() {
+            try {
+                return !_isNullOrUndefined(console) && !_isNullOrUndefined(window) && window.name && "string" == typeof window.name && JSON.parse(window.name)[CustomFunctionsLogger.CustomFunctionLoggingFlag];
+            } catch (ex) {
+                return OfficeExtension.Utility.log(JSON.stringify(ex)), !1;
+            }
+        }, CustomFunctionsLogger.CustomFunctionLoggingFlag = "CustomFunctionsRuntimeLogging", 
+        CustomFunctionsLogger.s_shouldLog = CustomFunctionsLogger.shouldLog(), CustomFunctionsLogger;
+    }();
+    !function(ErrorCode) {
+        ErrorCode.invalidValue = "#VALUE!", ErrorCode.notAvailable = "#N/A", ErrorCode.divisionByZero = "#DIV/0!", 
+        ErrorCode.invalidNumber = "#NUM!", ErrorCode.nullReference = "#NULL!", ErrorCode.invalidName = "#NAME?", 
+        ErrorCode.invalidReference = "#REF!";
+    }(ErrorCode = exports.ErrorCode || (exports.ErrorCode = {}));
+    var CustomFunctionError = function(_super) {
+        function CustomFunctionError(errorCode, errorMessage, errorSubType) {
+            var _this = _super.call(this, errorMessage || "") || this;
+            return _this.type = CustomFunctionError.valueType, _this.basicType = CustomFunctionError.valueType, 
+            Object.setPrototypeOf(_this, CustomFunctionError.prototype), _this.code = errorCode || ErrorCode.invalidValue, 
+            _this.basicValue = errorCode || ErrorCode.invalidValue, _this.errorSubType = errorSubType, 
+            _this.stack = void 0, _this;
+        }
+        return __extends(CustomFunctionError, _super), CustomFunctionError.prototype.toJSON = function() {
+            return {
+                valueType: "CustomFunctionError",
+                code: this.code,
+                type: this.type,
+                basicValue: this.basicValue,
+                basicType: this.type,
+                errorSubType: this.errorSubType,
+                message: this._getMessage(),
+                errorType: this._getErrorType()
+            };
+        }, CustomFunctionError.prototype._getErrorType = function() {
+            switch (this.basicValue) {
+              case ErrorCode.invalidValue:
+                return "Value";
+
+              case ErrorCode.divisionByZero:
+                return "Div0";
+
+              case ErrorCode.notAvailable:
+                return "NotAvailable";
+
+              case ErrorCode.invalidNumber:
+                return "Num";
+
+              case ErrorCode.invalidName:
+                return "Name";
+
+              case ErrorCode.invalidReference:
+                return "Ref";
+
+              case ErrorCode.nullReference:
+                return "Null";
+
+              default:
+                return;
+            }
+        }, CustomFunctionError.prototype._getMessage = function() {
+            switch (this.basicValue) {
+              case ErrorCode.invalidValue:
+              case ErrorCode.notAvailable:
+                return "" == this.message ? void 0 : this.message;
+
+              case ErrorCode.divisionByZero:
+              case ErrorCode.invalidNumber:
+              case ErrorCode.invalidName:
+              case ErrorCode.invalidReference:
+              case ErrorCode.nullReference:
+              default:
+                return;
+            }
+        }, CustomFunctionError.valueType = "Error", CustomFunctionError;
+    }(Error);
+    exports.CustomFunctionError = CustomFunctionError;
+    var CustomFunctionEntity = function() {
+        function CustomFunctionEntity(text, properties) {
+            this.type = CustomFunctionEntity.valueType, this.basicValue = "#VALUE!", this.basicType = "Error", 
+            Object.setPrototypeOf(this, CustomFunctionEntity.prototype), this.text = text, this.properties = properties;
+        }
+        return CustomFunctionEntity.prototype.toJSON = function() {
+            return {
+                type: this.type,
+                text: this.text,
+                basicValue: this.basicValue,
+                basicType: this.basicType,
+                properties: this.properties
+            };
+        }, CustomFunctionEntity.valueType = "Entity", CustomFunctionEntity;
+    }();
+    exports.CustomFunctionEntity = CustomFunctionEntity;
+    var CustomFunctionFormattedNumber = function() {
+        function CustomFunctionFormattedNumber(basicValue, numberFormat) {
+            this.type = CustomFunctionFormattedNumber.valueType, this.basicValue = basicValue, 
+            this.numberFormat = numberFormat;
+        }
+        return CustomFunctionFormattedNumber.prototype.toJSON = function() {
+            return {
+                type: this.type,
+                basicValue: this.basicValue,
+                numberFormat: this.numberFormat
+            };
+        }, CustomFunctionFormattedNumber.valueType = "FormattedNumber", CustomFunctionFormattedNumber;
+    }();
+    exports.CustomFunctionFormattedNumber = CustomFunctionFormattedNumber;
+    var CustomFunctionWebImage = function() {
+        function CustomFunctionWebImage(address, altText, relatedImagesAddress, attribution, provider) {
+            this.type = CustomFunctionWebImage.valueType, this.basicValue = "#VALUE!", this.basicType = "Error", 
+            this.address = address, null != attribution && (this.attribution = attribution), 
+            null != provider && (this.provider = provider), null != altText && (this.altText = altText), 
+            null != relatedImagesAddress && (this.relatedImagesAddress = relatedImagesAddress);
+        }
+        return CustomFunctionWebImage.prototype.toJSON = function() {
+            return {
+                type: this.type,
+                basicValue: this.basicValue,
+                basicType: this.basicType,
+                address: this.address,
+                altText: this.altText,
+                relatedImagesAddress: this.relatedImagesAddress,
+                attribution: null == this.attribution ? void 0 : this.attribution.map((function(attr) {
+                    return attr.toJSON();
+                })),
+                provider: null == this.provider ? void 0 : this.provider.toJSON()
+            };
+        }, CustomFunctionWebImage.valueType = "WebImage", CustomFunctionWebImage;
+    }();
+    exports.CustomFunctionWebImage = CustomFunctionWebImage;
+    var CustomFunctionAttribution = function() {
+        function CustomFunctionAttribution(licenseAddress, licenseText, sourceAddress, sourceText) {
+            null != licenseAddress && (this.licenseAddress = licenseAddress), null != licenseText && (this.licenseText = licenseText), 
+            null != sourceAddress && (this.sourceAddress = sourceAddress), null != sourceText && (this.sourceText = sourceText);
+        }
+        return CustomFunctionAttribution.prototype.toJSON = function() {
+            return {
+                licenseAddress: this.licenseAddress,
+                licenseText: this.licenseText,
+                sourceAddress: this.sourceAddress,
+                sourceText: this.sourceText
+            };
+        }, CustomFunctionAttribution;
+    }();
+    exports.CustomFunctionAttribution = CustomFunctionAttribution;
+    var CustomFunctionProvider = function() {
+        function CustomFunctionProvider(description, logoSourceAddress, logoTargetAddress) {
+            this.description = description, null != logoSourceAddress && (this.logoSourceAddress = logoSourceAddress), 
+            null != logoTargetAddress && (this.logoTargetAddress = logoTargetAddress);
+        }
+        return CustomFunctionProvider.prototype.toJSON = function() {
+            return {
+                description: this.description,
+                logoSourceAddress: this.logoSourceAddress,
+                logoTargetAddress: this.logoTargetAddress
+            };
+        }, CustomFunctionProvider;
+    }();
+    exports.CustomFunctionProvider = CustomFunctionProvider, exports.CreateCustomFunctionInstance = function CreateCustomFunctionInstance(parameterValues) {
+        if (parameterValues instanceof Array) return parameterValues.map((function(item) {
+            return CreateCustomFunctionInstance(item);
+        }));
+        if (!(parameterValues instanceof Object)) return parameterValues;
+        var obj = JSON.parse(parameterValues.value);
+        switch (obj.type) {
+          case CustomFunctionEntity.valueType:
+            return new CustomFunctionEntity(obj.text, obj.properties);
+
+          case CustomFunctionFormattedNumber.valueType:
+            return new CustomFunctionFormattedNumber(obj.primitive, obj.numberFormat);
+
+          case CustomFunctionError.valueType:
+            return new CustomFunctionError(obj.primitive, void 0, obj.errorSubCode);
+
+          case CustomFunctionWebImage.valueType:
+            return new CustomFunctionWebImage(obj.address, obj.altText, obj.relatedImagesAddress, obj.attribution, obj.provider);
+
+          case "Double":
+          case "String":
+          case "Boolean":
+            return obj.primitive;
+
+          default:
+            throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "message", "CustomFunctionProxy.createRichDataFromJsonString");
+        }
+    };
+    var CustomFunctionProxy = function() {
+        function CustomFunctionProxy() {
+            this._whenInit = void 0, this._isInit = !1, this._setResultsDelayMillis = 50, this._setResultsOverdueDelayMillis = 2e3, 
+            this._maxContextSyncExecutionDurationMills = 15e3, this._minContextSyncIntervalMills = 500, 
+            this._smallerMinContextSyncIntervalMills = 200, this._maxContextSyncIntervalMills = 2e3, 
+            this._setResultsLifeMillis = 6e4, this._ensureInitRetryDelayMillis = 500, this._resultEntryBuffer = {}, 
+            this._resultEntryRetryBuffer = {}, this._retryBufferBodySize = 0, this._isSetResultsTaskScheduled = !1, 
+            this._setResultsTaskOverdueTime = 0, this._inProgressContextSyncExpectedFinishTime = 0, 
+            this._batchQuotaMillis = 1e3, this._invocationContextMap = {}, this._maxResultSize = 2e6;
+        }
+        return CustomFunctionProxy.prototype._initSettings = function() {
+            if ("object" == typeof exports.Script && "object" == typeof exports.Script._CustomFunctionSettings) {
+                if ("number" == typeof exports.Script._CustomFunctionSettings.setResultsDelayMillis) {
+                    var setResultsDelayMillis = exports.Script._CustomFunctionSettings.setResultsDelayMillis;
+                    setResultsDelayMillis = Math.max(0, setResultsDelayMillis), setResultsDelayMillis = Math.min(1e3, setResultsDelayMillis), 
+                    this._setResultsDelayMillis = setResultsDelayMillis;
+                }
+                if ("number" == typeof exports.Script._CustomFunctionSettings.ensureInitRetryDelayMillis) {
+                    var ensureInitRetryDelayMillis = exports.Script._CustomFunctionSettings.ensureInitRetryDelayMillis;
+                    ensureInitRetryDelayMillis = Math.max(0, ensureInitRetryDelayMillis), ensureInitRetryDelayMillis = Math.min(2e3, ensureInitRetryDelayMillis), 
+                    this._ensureInitRetryDelayMillis = ensureInitRetryDelayMillis;
+                }
+                if ("number" == typeof exports.Script._CustomFunctionSettings.setResultsLifeMillis) {
+                    var setResultsLifeMillis = exports.Script._CustomFunctionSettings.setResultsLifeMillis;
+                    setResultsLifeMillis = Math.max(0, setResultsLifeMillis), setResultsLifeMillis = Math.min(6e5, setResultsLifeMillis), 
+                    this._setResultsLifeMillis = setResultsLifeMillis;
+                }
+                if ("number" == typeof exports.Script._CustomFunctionSettings.batchQuotaMillis) {
+                    var batchQuotaMillis = exports.Script._CustomFunctionSettings.batchQuotaMillis;
+                    batchQuotaMillis = Math.max(0, batchQuotaMillis), batchQuotaMillis = Math.min(1e3, batchQuotaMillis), 
+                    this._batchQuotaMillis = batchQuotaMillis;
+                }
+            }
+        }, CustomFunctionProxy.prototype.ensureInit = function(context) {
+            var _this = this;
+            return this._initSettings(), void 0 === this._whenInit && (this._whenInit = OfficeExtension.Utility._createPromiseFromResult(null).then((function() {
+                if (!_this._isInit) return context.eventRegistration.register(5, "", _this._handleMessage.bind(_this));
+            })).then((function() {
+                _this._isInit = !0;
+            }))), this._isInit || context._pendingRequest._addPreSyncPromise(this._whenInit), 
+            this._whenInit;
+        }, CustomFunctionProxy.prototype.setCustomFunctionInvoker = function(invoker) {
+            "object" == typeof CustomFunctionMappings && delete CustomFunctionMappings.__delay__, 
+            this._invoker = invoker;
+        }, CustomFunctionProxy.prototype.setCustomFunctionAssociation = function(association) {
+            var _this = this;
+            this._customFunctionMappingsUpperCase = void 0, this._association = association, 
+            this._association && this._association.onchange((function() {
+                _this._customFunctionMappingsUpperCase = void 0;
+            }));
+        }, CustomFunctionProxy.prototype._initFromHostBridge = function(hostBridge) {
+            var _this = this;
+            this._initSettings(), hostBridge.addHostMessageHandler((function(bridgeMessage) {
+                3 === bridgeMessage.type ? _this._handleMessage(bridgeMessage.message) : 4 === bridgeMessage.type && _this._handleSettings(bridgeMessage.message);
+            })), this._isInit = !0, this._whenInit = OfficeExtension.CoreUtility.Promise.resolve();
+        }, CustomFunctionProxy.prototype._handleSettings = function(args) {
+            OfficeExtension.Utility.log("CustomFunctionProxy._handleSettings:" + JSON.stringify(args)), 
+            args && "object" == typeof args && (CustomFunctionsLogger.s_shouldLog = args[CustomFunctionsLogger.CustomFunctionLoggingFlag]);
+        }, CustomFunctionProxy.prototype._handleMessage = function(args) {
+            try {
+                OfficeExtension.Utility.log("CustomFunctionProxy._handleMessage"), OfficeExtension.Utility.checkArgumentNull(args, "args");
+                for (var entryArray = args.entries, invocationArray = [], cancellationArray = [], metadataArray = [], i = 0; i < entryArray.length; i++) 1 === entryArray[i].messageCategory && ("string" == typeof entryArray[i].message && (entryArray[i].message = JSON.parse(entryArray[i].message)), 
+                1e3 === entryArray[i].messageType ? invocationArray.push(entryArray[i]) : 1001 === entryArray[i].messageType ? cancellationArray.push(entryArray[i]) : 1002 === entryArray[i].messageType ? metadataArray.push(entryArray[i]) : OfficeExtension.Utility.log("CustomFunctionProxy._handleMessage unknown message type " + entryArray[i].messageType));
+                if (metadataArray.length > 0 && this._handleMetadataEntries(metadataArray), invocationArray.length > 0) {
+                    var batchArray = this._batchInvocationEntries(invocationArray);
+                    batchArray.length > 0 && this._invokeRemainingBatchEntries(batchArray, 0);
+                }
+                cancellationArray.length > 0 && this._handleCancellationEntries(cancellationArray);
+            } catch (ex) {
+                throw CustomFunctionProxy._tryLog(ex), ex;
+            }
+            return OfficeExtension.Utility._createPromiseFromResult(null);
+        }, CustomFunctionProxy.toLogMessage = function(ex) {
+            var ret = "Unknown Error";
+            if (ex) try {
+                ex.toString && (ret = ex.toString()), ret = ret + " " + JSON.stringify(ex);
+            } catch (otherEx) {
+                ret = "Unexpected Error";
+            }
+            return ret;
+        }, CustomFunctionProxy._tryLog = function(ex) {
+            var message = CustomFunctionProxy.toLogMessage(ex);
+            OfficeExtension.Utility.log(message);
+        }, CustomFunctionProxy.prototype._handleMetadataEntries = function(entryArray) {
+            for (var i = 0; i < entryArray.length; i++) {
+                var message = entryArray[i].message;
+                if (_isNullOrUndefined(message)) throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "message", "CustomFunctionProxy._handleMetadataEntries");
+                exports.Script._CustomFunctionMetadata[message.functionName] = {
+                    options: {
+                        stream: message.isStream,
+                        cancelable: message.isCancelable
+                    }
+                };
+            }
+        }, CustomFunctionProxy.prototype._handleCancellationEntries = function(entryArray) {
+            for (var i = 0; i < entryArray.length; i++) {
+                var message = entryArray[i].message;
+                if (_isNullOrUndefined(message)) throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "message", "CustomFunctionProxy._handleCancellationEntries");
+                var invocationId = message.invocationId, invocationContext = this._invocationContextMap[invocationId];
+                _isNullOrUndefined(invocationContext) || (delete this._invocationContextMap[invocationId], 
+                CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionCancellation, invocationContext.functionName), 
+                _isNullOrUndefined(invocationContext.onCanceled) || invocationContext.onCanceled());
+            }
+        }, CustomFunctionProxy.prototype._transferCustomFunctionError = function(entryArray) {
+            var _this = this;
+            return entryArray.map((function(value, index) {
+                return null === value ? value : null != value.code && "CustomFunctionError" == value.type ? new CustomFunctionError(value.code) : value instanceof Array ? _this._transferCustomFunctionError(value) : value;
+            }));
+        }, CustomFunctionProxy.prototype._transferCustomFunctionRichData = function(entryArray) {
+            var _this = this;
+            return entryArray.map((function(element, index) {
+                return element instanceof Array ? _this._transferCustomFunctionRichData(element) : element instanceof Object ? JSON.parse(element.value) : element;
+            }));
+        }, CustomFunctionProxy.prototype._batchInvocationEntries = function(entryArray) {
+            for (var _this = this, batchArray = [], _loop_1 = function(i) {
+                var message, arrayOrObjectMessage = entryArray[i].message;
+                if (Array.isArray(arrayOrObjectMessage) ? (message = {
+                    invocationId: arrayOrObjectMessage[0],
+                    functionName: arrayOrObjectMessage[1],
+                    parameterValues: arrayOrObjectMessage[2],
+                    address: arrayOrObjectMessage[3],
+                    flags: arrayOrObjectMessage[4],
+                    parameterAddresses: null
+                }, _isNullOrUndefined(arrayOrObjectMessage[5]) || (message.parameterAddresses = arrayOrObjectMessage[5])) : message = arrayOrObjectMessage, 
+                _isNullOrUndefined(message)) throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "message", "CustomFunctionProxy._batchInvocationEntries");
+                if (_isNullOrUndefined(message.invocationId) || message.invocationId < 0) throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "invocationId", "CustomFunctionProxy._batchInvocationEntries");
+                if (_isNullOrUndefined(message.functionName)) throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.generalException, "functionName", "CustomFunctionProxy._batchInvocationEntries");
+                var call = null, isCancelable = !1, isStreaming = !1, isAllowError = !1;
+                if ("number" == typeof message.flags) isCancelable = 0 != (1 & message.flags), isStreaming = 0 != (2 & message.flags), 
+                isAllowError = 0 != (4 & message.flags), 0 != (8 & message.flags) && (message.parameterValues = this_1._transferCustomFunctionRichData(message.parameterValues)), 
+                isAllowError && (message.parameterValues = this_1._transferCustomFunctionError(message.parameterValues)); else {
+                    var metadata = exports.Script._CustomFunctionMetadata[message.functionName];
+                    if (_isNullOrUndefined(metadata)) return CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionNotFoundLog, message.functionName), 
+                    OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.8") ? this_1._setError(message.invocationId, null, 9) : this_1._setError(message.invocationId, "N/A", 1), 
+                    "continue";
+                    isCancelable = metadata.options.cancelable, isStreaming = metadata.options.stream;
+                }
+                if (this_1._invoker && !this_1._customFunctionMappingsContains(message.functionName)) return this_1._invokeFunctionUsingInvoker(message), 
+                "continue";
+                try {
+                    call = this_1._getFunction(message.functionName);
+                } catch (ex) {
+                    return CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionNotFoundLog, message.functionName), 
+                    OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.8") ? this_1._setError(message.invocationId, ex, 10) : this_1._setError(message.invocationId, ex, 1), 
+                    "continue";
+                }
+                var invocationContext = void 0;
+                if (isStreaming || isCancelable) {
+                    var setResult = void 0, setError = void 0;
+                    isStreaming && (setResult = function(result) {
+                        _this._invocationContextMap[message.invocationId] ? _this._setResult(message.invocationId, result) : CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionAlreadyCancelled, message.functionName);
+                    }, setError = function(error) {
+                        _this._invocationContextMap[message.invocationId] ? _this._setError(message.invocationId, error.message, _this._getCustomFunctionResultErrorCodeFromErrorCode(error.code)) : CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionAlreadyCancelled, message.functionName);
+                    }), invocationContext = new InvocationContext(message.functionName, message.address, message.parameterAddresses, setResult, setError), 
+                    this_1._invocationContextMap[message.invocationId] = invocationContext;
+                } else invocationContext = new InvocationContext(message.functionName, message.address, message.parameterAddresses);
+                message.parameterValues.push(invocationContext), batchArray.push({
+                    call: call,
+                    isBatching: !1,
+                    isStreaming: isStreaming,
+                    invocationIds: [ message.invocationId ],
+                    parameterValueSets: [ message.parameterValues ],
+                    functionName: message.functionName
+                });
+            }, this_1 = this, i = 0; i < entryArray.length; i++) _loop_1(i);
+            return batchArray;
+        }, CustomFunctionProxy.prototype._invokeFunctionUsingInvoker = function(message) {
+            var _this = this, isCancelable = 0 != (1 & message.flags), isStreaming = 0 != (2 & message.flags), invocationId = message.invocationId, setResult = void 0, setError = void 0;
+            if (isStreaming) setResult = function(result) {
+                _this._invocationContextMap[invocationId] && _this._setResult(invocationId, result);
+            }, setError = function(error) {
+                _this._invocationContextMap[invocationId] && _this._setError(invocationId, error.message, _this._getCustomFunctionResultErrorCodeFromErrorCode(error.code));
+            }; else {
+                var setResultCalled_1 = !1;
+                setResult = function(result) {
+                    setResultCalled_1 || _this._setResult(invocationId, result), setResultCalled_1 = !0;
+                }, setError = function(error) {
+                    setResultCalled_1 || _this._setError(invocationId, error.message, _this._getCustomFunctionResultErrorCodeFromErrorCode(error.code)), 
+                    setResultCalled_1 = !0;
+                };
+            }
+            var invocationContext = new InvocationContext(message.functionName, message.address, message.parameterAddresses, setResult, setError);
+            (isStreaming || isCancelable) && (this._invocationContextMap[invocationId] = invocationContext), 
+            this._invoker.invoke(message.functionName, message.parameterValues, invocationContext);
+        }, CustomFunctionProxy.prototype._ensureCustomFunctionMappingsUpperCase = function() {
+            if (_isNullOrUndefined(this._customFunctionMappingsUpperCase)) {
+                if (this._customFunctionMappingsUpperCase = {}, "object" == typeof CustomFunctionMappings) for (var key in OfficeExtension.CoreUtility.log("CustomFunctionMappings.Keys=" + JSON.stringify(Object.keys(CustomFunctionMappings))), 
+                CustomFunctionMappings) this._customFunctionMappingsUpperCase[key.toUpperCase()] && CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionDuplicatedName, key), 
+                this._customFunctionMappingsUpperCase[key.toUpperCase()] = CustomFunctionMappings[key];
+                if (this._association) for (var key in OfficeExtension.CoreUtility.log("CustomFunctionAssociateMappings.Keys=" + JSON.stringify(Object.keys(this._association.mappings))), 
+                this._association.mappings) this._customFunctionMappingsUpperCase[key.toUpperCase()] && CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionDuplicatedName, key), 
+                this._customFunctionMappingsUpperCase[key.toUpperCase()] = this._association.mappings[key];
+            }
+        }, CustomFunctionProxy.prototype._customFunctionMappingsContains = function(functionName) {
+            this._ensureCustomFunctionMappingsUpperCase();
+            var functionNameUpperCase = functionName.toUpperCase();
+            if (!_isNullOrUndefined(this._customFunctionMappingsUpperCase[functionNameUpperCase])) return !0;
+            if ("undefined" != typeof window) {
+                for (var functionParent = window, functionNameSegments = functionName.split("."), i = 0; i < functionNameSegments.length - 1; i++) if (functionParent = functionParent[functionNameSegments[i]], 
+                _isNullOrUndefined(functionParent) || "object" != typeof functionParent) return !1;
+                if ("function" == typeof functionParent[functionNameSegments[functionNameSegments.length - 1]]) return !0;
+            }
+            return !1;
+        }, CustomFunctionProxy.prototype._getCustomFunctionMappings = function(functionName) {
+            this._ensureCustomFunctionMappingsUpperCase();
+            var functionNameUpperCase = functionName.toUpperCase();
+            if (!_isNullOrUndefined(this._customFunctionMappingsUpperCase[functionNameUpperCase])) {
+                if ("function" == typeof this._customFunctionMappingsUpperCase[functionNameUpperCase]) return this._customFunctionMappingsUpperCase[functionNameUpperCase];
+                throw OfficeExtension.Utility.createRuntimeError(CustomFunctionRuntimeErrorCode.invalidOperation, OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.customFunctionInvalidFunctionMapping, functionName), "CustomFunctionProxy._getCustomFunctionMappings");
+            }
+        }, CustomFunctionProxy.prototype._getFunction = function(functionName) {
+            return this._getCustomFunctionMappings(functionName);
+        }, CustomFunctionProxy.prototype._invokeRemainingBatchEntries = function(batchArray, startIndex) {
+            OfficeExtension.Utility.log("CustomFunctionProxy._invokeRemainingBatchEntries");
+            for (var startTimeMillis = Date.now(), i = startIndex; i < batchArray.length; i++) {
+                if (!(Date.now() - startTimeMillis < this._batchQuotaMillis)) {
+                    OfficeExtension.Utility.log("setTimeout(CustomFunctionProxy._invokeRemainingBatchEntries)"), 
+                    setTimeout(this._invokeRemainingBatchEntries.bind(this), 0, batchArray, i);
+                    break;
+                }
+                this._invokeFunctionAndSetResult(batchArray[i]);
+            }
+        }, CustomFunctionProxy.prototype._invokeFunctionAndSetResult = function(batch) {
+            var results, _this = this;
+            CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionStartLog, batch.functionName);
+            var startTime = Date.now();
+            try {
+                results = batch.isBatching ? batch.call.call(null, batch.parameterValueSets) : [ batch.call.apply(null, batch.parameterValueSets[0]) ];
+            } catch (ex) {
+                var outboundData_1 = [];
+                outboundData_1.push(Date.now() - startTime);
+                for (var i = 0; i < batch.invocationIds.length; i++) ex instanceof CustomFunctionError ? this._setErrorWithOutboundData(batch.invocationIds[i], ex.message, this._getCustomFunctionResultErrorCodeFromErrorCode(ex.code), outboundData_1) : this._setErrorWithOutboundData(batch.invocationIds[i], ex, 2, outboundData_1);
+                return void CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionExceptionThrownLog, batch.functionName, CustomFunctionProxy.toLogMessage(ex));
+            }
+            var outboundData = [];
+            if (CustomFunctions.isFeatureEnabled(3) || outboundData.push(Date.now() - startTime), 
+            batch.isStreaming) ; else if (results.length === batch.parameterValueSets.length) {
+                var _loop_2 = function(i) {
+                    _isNullOrUndefined(results[i]) || "object" != typeof results[i] || "function" != typeof results[i].then ? (CustomFunctions.isFeatureEnabled(3) && outboundData.push(Date.now() - startTime), 
+                    CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionFinishLog, batch.functionName), 
+                    this_2._setResultWithOutboundData(batch.invocationIds[i], results[i], outboundData)) : results[i].then((function(value) {
+                        CustomFunctions.isFeatureEnabled(3) && outboundData.push(Date.now() - startTime), 
+                        CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionFinishLog, batch.functionName), 
+                        _this._setResultWithOutboundData(batch.invocationIds[i], value, outboundData);
+                    }), (function(reason) {
+                        CustomFunctions.isFeatureEnabled(3) && outboundData.push(Date.now() - startTime), 
+                        CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionRejectedPromoseLog, batch.functionName, CustomFunctionProxy.toLogMessage(reason)), 
+                        reason instanceof CustomFunctionError ? _this._setErrorWithOutboundData(batch.invocationIds[i], reason, _this._getCustomFunctionResultErrorCodeFromErrorCode(reason.code), outboundData) : _this._setErrorWithOutboundData(batch.invocationIds[i], reason, 3, outboundData);
+                    }));
+                }, this_2 = this;
+                for (i = 0; i < results.length; i++) _loop_2(i);
+            } else {
+                CustomFunctions.isFeatureEnabled(3) && outboundData.push(Date.now() - startTime), 
+                CustomFunctionsLogger.logEvent(CustomFunctionProxy.CustomFunctionExecutionBatchMismatchLog, batch.functionName);
+                for (i = 0; i < batch.invocationIds.length; i++) this._setErrorWithOutboundData(batch.invocationIds[i], OfficeExtension.Utility._getResourceString(OfficeExtension.ResourceStrings.customFunctionUnexpectedNumberOfEntriesInResultBatch), 4, outboundData);
+            }
+        }, CustomFunctionProxy.prototype._setResult = function(invocationId, result) {
+            var outboundData = [];
+            outboundData.push(0), this._setResultWithOutboundData(invocationId, result, outboundData);
+        }, CustomFunctionProxy.prototype._setResultWithOutboundData = function(invocationId, result, outboundData) {
+            var invocationResult = {
+                id: invocationId,
+                value: result,
+                outboundData: outboundData
+            };
+            "number" == typeof result ? isNaN(result) ? (invocationResult.failed = !0, invocationResult.value = "NaN") : isFinite(result) || (invocationResult.failed = !0, 
+            invocationResult.value = "Infinity", invocationResult.errorCode = 6) : result instanceof CustomFunctionError || result instanceof CustomFunctionEntity || result instanceof CustomFunctionFormattedNumber || result instanceof CustomFunctionWebImage ? (invocationResult.failed = !1, 
+            invocationResult.value = result.toJSON()) : result instanceof Error && (invocationResult.failed = !0, 
+            invocationResult.value = CustomFunctionProxy.toLogMessage(result), invocationResult.errorCode = 0);
+            var timeNow = Date.now();
+            this._resultEntryBuffer[invocationId] = {
+                timeCreated: timeNow,
+                result: invocationResult
+            }, this._ensureSetResultsTaskIsScheduled(timeNow);
+        }, CustomFunctionProxy.prototype._setError = function(invocationId, error, errorCode) {
+            var outboundData = [];
+            outboundData.push(0), this._setErrorWithOutboundData(invocationId, error, errorCode, outboundData);
+        }, CustomFunctionProxy.prototype._setErrorWithOutboundData = function(invocationId, error, errorCode, outboundData) {
+            var message = "";
+            _isNullOrUndefined(error) || (error instanceof CustomFunctionError && !_isNullOrUndefined(error.message) ? message = error.message : "string" == typeof error && (message = error));
+            var result = {
+                id: invocationId,
+                failed: !0,
+                value: message,
+                errorCode: errorCode,
+                outboundData: outboundData
+            }, timeNow = Date.now();
+            this._resultEntryBuffer[invocationId] = {
+                timeCreated: timeNow,
+                result: result
+            }, this._ensureSetResultsTaskIsScheduled(timeNow);
+        }, CustomFunctionProxy.prototype._getCustomFunctionResultErrorCodeFromErrorCode = function(errorCode) {
+            var internalCode;
+            switch (errorCode) {
+              case ErrorCode.notAvailable:
+                internalCode = 1;
+                break;
+
+              case ErrorCode.divisionByZero:
+                internalCode = 5;
+                break;
+
+              case ErrorCode.invalidValue:
+                internalCode = 7;
+                break;
+
+              case ErrorCode.invalidNumber:
+                internalCode = 6;
+                break;
+
+              case ErrorCode.nullReference:
+                internalCode = 8;
+                break;
+
+              default:
+                internalCode = 7;
+            }
+            return internalCode;
+        }, CustomFunctionProxy.prototype._ensureSetResultsTaskIsScheduled = function(timeNow) {
+            if (this._setResultsTaskOverdueTime > 0 && timeNow > this._setResultsTaskOverdueTime) return OfficeExtension.Utility.log("SetResultsTask overdue"), 
+            void this._executeSetResultsTask();
+            this._isSetResultsTaskScheduled || (OfficeExtension.Utility.log("setTimeout(CustomFunctionProxy._executeSetResultsTask)"), 
+            setTimeout(this._executeSetResultsTask.bind(this), this._setResultsDelayMillis), 
+            this._isSetResultsTaskScheduled = !0, this._setResultsTaskOverdueTime = timeNow + this._setResultsDelayMillis + this._setResultsOverdueDelayMillis);
+        }, CustomFunctionProxy.prototype._convertCustomFunctionInvocationResultToArray = function(result) {
+            var ret = [];
+            return ret.push(result.id), ret.push(!result.failed), OfficeExtension.CoreUtility.isUndefined(result.value) ? ret.push(null) : ret.push(result.value), 
+            result.failed && (OfficeExtension.CoreUtility.isUndefined(result.errorCode) ? ret.push(0) : ret.push(result.errorCode)), 
+            OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.9") && ret.push(result.outboundData), 
+            ret;
+        }, CustomFunctionProxy.prototype._executeSetResultsTask = function() {
+            var _this = this;
+            OfficeExtension.Utility.log("CustomFunctionProxy._executeSetResultsTask");
+            var timeNow = Date.now();
+            if (this._inProgressContextSyncExpectedFinishTime > 0 && this._inProgressContextSyncExpectedFinishTime > timeNow) return OfficeExtension.Utility.log("context.sync() is in progress. setTimeout(CustomFunctionProxy._executeSetResultsTask)"), 
+            setTimeout(this._executeSetResultsTask.bind(this), this._setResultsDelayMillis), 
+            void (this._setResultsTaskOverdueTime = timeNow + this._setResultsDelayMillis + this._setResultsOverdueDelayMillis);
+            this._isSetResultsTaskScheduled = !1, this._setResultsTaskOverdueTime = 0;
+            var resultEntryBufferCopy = {}, isSizeRetry = !1;
+            CustomFunctions.isFeatureEnabled(1) && Object.keys(this._resultEntryRetryBuffer).length > 0 ? (resultEntryBufferCopy = this._resultEntryRetryBuffer, 
+            this._resultEntryRetryBuffer = {}, this._retryBufferBodySize = 2, isSizeRetry = !0) : (resultEntryBufferCopy = this._resultEntryBuffer, 
+            this._resultEntryBuffer = {});
+            var useArrayResult = OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.7"), invocationResults = [];
+            for (var key in resultEntryBufferCopy) useArrayResult ? invocationResults.push(this._convertCustomFunctionInvocationResultToArray(resultEntryBufferCopy[key].result)) : invocationResults.push(resultEntryBufferCopy[key].result);
+            if (0 !== invocationResults.length) {
+                var context = new CustomFunctionRequestContext;
+                useArrayResult ? context.customFunctions.setInvocationArrayResults(invocationResults) : context.customFunctions.setInvocationResults(invocationResults);
+                var contextSyncStartTime = Date.now();
+                this._inProgressContextSyncExpectedFinishTime = contextSyncStartTime + this._maxContextSyncExecutionDurationMills, 
+                context.sync().then((function(value) {
+                    var timeNow = Date.now();
+                    _this._clearInProgressContextSyncExpectedFinishTimeAfterMinInterval(timeNow - contextSyncStartTime), 
+                    isSizeRetry && _this._ensureSetResultsTaskIsScheduled(timeNow);
+                }), (function(reason) {
+                    var timeNow = Date.now();
+                    _this._clearInProgressContextSyncExpectedFinishTimeAfterMinInterval(timeNow - contextSyncStartTime), 
+                    CustomFunctions.isFeatureEnabled(1) && reason.code == OfficeExtension.ErrorCodes.requestPayloadSizeLimitExceeded ? _this._restoreAndSliceResultEntries(timeNow, resultEntryBufferCopy) : _this._restoreResultEntries(timeNow, resultEntryBufferCopy), 
+                    _this._ensureSetResultsTaskIsScheduled(timeNow);
+                }));
+            }
+        }, CustomFunctionProxy.prototype._restoreResultEntries = function(timeNow, resultEntryBufferCopy) {
+            for (var key in resultEntryBufferCopy) {
+                var resultSetter = resultEntryBufferCopy[key];
+                timeNow - resultSetter.timeCreated <= this._setResultsLifeMillis && (this._resultEntryBuffer[key] || (this._resultEntryBuffer[key] = resultSetter));
+            }
+        }, CustomFunctionProxy.prototype._restoreAndSliceResultEntries = function(timeNow, resultEntryBufferCopy) {
+            for (var key in resultEntryBufferCopy) {
+                var resultSetter = resultEntryBufferCopy[key], resultSize = void 0;
+                if (timeNow - resultSetter.timeCreated <= this._setResultsLifeMillis && !this._resultEntryBuffer[key]) {
+                    try {
+                        resultSize = JSON.stringify(this._convertCustomFunctionInvocationResultToArray(resultSetter.result)).length + 1;
+                    } catch (ex) {
+                        this._resultEntryBuffer[key] = resultSetter, OfficeExtension.Utility.log("Result can't pass in JSON.stringify");
+                        continue;
+                    }
+                    this._retryBufferBodySize + resultSize < this._maxResultSize ? (this._resultEntryRetryBuffer[key] = resultSetter, 
+                    this._retryBufferBodySize += resultSize) : this._resultEntryBuffer[key] = resultSetter;
+                }
+            }
+        }, CustomFunctionProxy.prototype._clearInProgressContextSyncExpectedFinishTimeAfterMinInterval = function(lastContextSyncDurationMills) {
+            var _this = this, contextSyncInterval = CustomFunctions.isFeatureEnabled(2) ? this._smallerMinContextSyncIntervalMills : this._minContextSyncIntervalMills, interval = Math.max(contextSyncInterval, 2 * lastContextSyncDurationMills), intervalMax = CustomFunctions.isFeatureEnabled(4) ? Math.min(this._maxContextSyncIntervalMills, interval) : interval;
+            OfficeExtension.Utility.log("setTimeout(clearInProgressContestSyncExpectedFinishedTime," + interval + ")"), 
+            setTimeout((function() {
+                OfficeExtension.Utility.log("clearInProgressContestSyncExpectedFinishedTime"), _this._inProgressContextSyncExpectedFinishTime = 0;
+            }), intervalMax);
+        }, CustomFunctionProxy.CustomFunctionExecutionStartLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Verbose, "CustomFunctions [Execution] [Begin] Function="), 
+        CustomFunctionProxy.CustomFunctionExecutionFailureLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] Function="), 
+        CustomFunctionProxy.CustomFunctionExecutionRejectedPromoseLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] [RejectedPromise] Function="), 
+        CustomFunctionProxy.CustomFunctionExecutionExceptionThrownLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] [ExceptionThrown] Function="), 
+        CustomFunctionProxy.CustomFunctionExecutionBatchMismatchLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [End] [Failure] [BatchMismatch] Function="), 
+        CustomFunctionProxy.CustomFunctionExecutionFinishLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Info, "CustomFunctions [Execution] [End] [Success] Function="), 
+        CustomFunctionProxy.CustomFunctionExecutionNotFoundLog = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [Execution] [NotFound] Function="), 
+        CustomFunctionProxy.CustomFunctionCancellation = new CustomFunctionLog(CustomFunctionLoggingSeverity.Info, "CustomFunctions [Cancellation] Function="), 
+        CustomFunctionProxy.CustomFunctionAlreadyCancelled = new CustomFunctionLog(CustomFunctionLoggingSeverity.Info, "CustomFunctions [AlreadyCancelled] Function="), 
+        CustomFunctionProxy.CustomFunctionDuplicatedName = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [DuplicatedName] Function="), 
+        CustomFunctionProxy.CustomFunctionInvalidArg = new CustomFunctionLog(CustomFunctionLoggingSeverity.Error, "CustomFunctions [InvalidArg] Name="), 
+        CustomFunctionProxy;
+    }();
+    exports.CustomFunctionProxy = CustomFunctionProxy, exports.customFunctionProxy = new CustomFunctionProxy, 
+    exports.setCustomFunctionAssociation = exports.customFunctionProxy.setCustomFunctionAssociation.bind(exports.customFunctionProxy), 
+    exports.setCustomFunctionInvoker = exports.customFunctionProxy.setCustomFunctionInvoker.bind(exports.customFunctionProxy), 
+    Core.HostBridge.onInited((function(hostBridge) {
+        exports.customFunctionProxy._initFromHostBridge(hostBridge);
+    }));
+    var CustomFunctions = function(_super) {
+        function CustomFunctions() {
+            return null !== _super && _super.apply(this, arguments) || this;
+        }
+        return __extends(CustomFunctions, _super), Object.defineProperty(CustomFunctions.prototype, "_className", {
+            get: function() {
+                return "CustomFunctions";
+            },
+            enumerable: !1,
+            configurable: !0
+        }), CustomFunctions.isFeatureEnabled = function(args) {
+            return this._enabledFeature instanceof Array && this._enabledFeature.indexOf(args) >= 0;
+        }, CustomFunctions.initialize = function() {
+            var _this = this, context = new CustomFunctionRequestContext;
+            return exports.customFunctionProxy.ensureInit(context).then((function() {
+                var enabledFeature;
+                return context.customFunctions._SetOsfControlContainerReadyForCustomFunctions(), 
+                OfficeExtension.Utility.isSetSupported("CustomFunctions", "1.9") && (enabledFeature = context.customFunctions._GetEnabledFeatures()), 
+                OfficeExtension.Utility.log("OsfControl activation lifecycle: Set OsfControlContainer ready for CustomFunctions"), 
+                context._customData = "SetOsfControlContainerReadyForCustomFunctions", context.sync().then((function() {
+                    _isNullOrUndefined(enabledFeature) || (_this._enabledFeature = enabledFeature.value);
+                })).catch((function(error) {
+                    !function(error, rethrowOtherError) {
+                        var isCellEditModeError = error instanceof OfficeExtension.Error && error.code === CustomFunctionRuntimeErrorCode.invalidOperationInCellEditMode;
+                        if (OfficeExtension.CoreUtility.log("Error on starting custom functions: " + error), 
+                        isCellEditModeError) {
+                            OfficeExtension.CoreUtility.log("Was in cell-edit mode, will try again");
+                            var delay_1 = exports.customFunctionProxy._ensureInitRetryDelayMillis;
+                            return new OfficeExtension.CoreUtility.Promise((function(resolve) {
+                                return setTimeout(resolve, delay_1);
+                            })).then((function() {
+                                return CustomFunctions.initialize();
+                            }));
+                        }
+                        if (rethrowOtherError) throw error;
+                    }(error, !0);
+                }));
+            }));
+        }, CustomFunctions.prototype.setInvocationArrayResults = function(results) {
+            _throwIfApiNotSupported("CustomFunctions.setInvocationArrayResults", "CustomFunctions", "1.4", "Excel"), 
+            _invokeMethod(this, "SetInvocationArrayResults", 0, [ results ], 2, 0);
+        }, CustomFunctions.prototype.setInvocationResults = function(results) {
+            _invokeMethod(this, "SetInvocationResults", 0, [ results ], 2, 0);
+        }, CustomFunctions.prototype._GetEnabledFeatures = function() {
+            return _throwIfApiNotSupported("CustomFunctions._GetEnabledFeatures", "CustomFunctions", "1.4", "Excel"), 
+            _invokeMethod(this, "_GetEnabledFeatures", 1, [], 4, 0);
+        }, CustomFunctions.prototype._SetInvocationError = function(invocationId, message) {
+            _invokeMethod(this, "_SetInvocationError", 0, [ invocationId, message ], 2, 0);
+        }, CustomFunctions.prototype._SetInvocationResult = function(invocationId, result) {
+            _invokeMethod(this, "_SetInvocationResult", 0, [ invocationId, result ], 2, 0);
+        }, CustomFunctions.prototype._SetOsfControlContainerReadyForCustomFunctions = function() {
+            _invokeMethod(this, "_SetOsfControlContainerReadyForCustomFunctions", 0, [], 10, 0);
+        }, CustomFunctions.prototype._handleResult = function(value) {
+            (_super.prototype._handleResult.call(this, value), _isNullOrUndefined(value)) || _fixObjectPathIfNecessary(this, value);
+        }, CustomFunctions.prototype._handleRetrieveResult = function(value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result), _processRetrieveResult(this, value, result);
+        }, CustomFunctions.newObject = function(context) {
+            return _createTopLevelServiceObject(CustomFunctions, context, "Microsoft.ExcelServices.CustomFunctions", !1, 4);
+        }, CustomFunctions.prototype.toJSON = function() {
+            return _toJson(this, {}, {});
+        }, CustomFunctions;
+    }(OfficeExtension.ClientObject);
+    exports.CustomFunctions = CustomFunctions;
+    var CustomFunctionRuntimeErrorCode, CustomFunctionsContainer = function(_super) {
+        function CustomFunctionsContainer() {
+            return null !== _super && _super.apply(this, arguments) || this;
+        }
+        return __extends(CustomFunctionsContainer, _super), Object.defineProperty(CustomFunctionsContainer.prototype, "_className", {
+            get: function() {
+                return "CustomFunctionsContainer";
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Object.defineProperty(CustomFunctionsContainer.prototype, "_navigationPropertyNames", {
+            get: function() {
+                return [ "customFunctions" ];
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Object.defineProperty(CustomFunctionsContainer.prototype, "customFunctions", {
+            get: function() {
+                return _throwIfApiNotSupported("CustomFunctionsContainer.customFunctions", "CustomFunctions", "1.2", "Excel"), 
+                this._C || (this._C = _createPropertyObject(CustomFunctions, this, "CustomFunctions", !1, 4)), 
+                this._C;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), CustomFunctionsContainer.prototype._handleResult = function(value) {
+            if (_super.prototype._handleResult.call(this, value), !_isNullOrUndefined(value)) {
+                var obj = value;
+                _fixObjectPathIfNecessary(this, obj), _handleNavigationPropertyResults(this, obj, [ "customFunctions", "CustomFunctions" ]);
+            }
+        }, CustomFunctionsContainer.prototype.load = function(options) {
+            return _load(this, options);
+        }, CustomFunctionsContainer.prototype._handleRetrieveResult = function(value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result), _processRetrieveResult(this, value, result);
+        }, CustomFunctionsContainer.prototype.toJSON = function() {
+            return _toJson(this, {}, {});
+        }, CustomFunctionsContainer;
+    }(OfficeExtension.ClientObject);
+    exports.CustomFunctionsContainer = CustomFunctionsContainer, function(CustomFunctionRuntimeErrorCode) {
+        CustomFunctionRuntimeErrorCode.generalException = "GeneralException", CustomFunctionRuntimeErrorCode.invalidOperation = "InvalidOperation", 
+        CustomFunctionRuntimeErrorCode.invalidOperationInCellEditMode = "InvalidOperationInCellEditMode";
+    }(CustomFunctionRuntimeErrorCode || (CustomFunctionRuntimeErrorCode = {}));
+} ]);
+//# sourceMappingURL=custom-functions-agave-officejs-bundle.g.debug.js.map
+window.OfficeExtensionBatch = window.OfficeExtension;
+!function(modules) {
+    var installedModules = {};
+    function __webpack_require__(moduleId) {
+        if (installedModules[moduleId]) return installedModules[moduleId].exports;
+        var module = installedModules[moduleId] = {
+            i: moduleId,
+            l: !1,
+            exports: {}
         };
-        Object.defineProperty(exports, "__esModule", {
+        return modules[moduleId].call(module.exports, module, module.exports, __webpack_require__), 
+        module.l = !0, module.exports;
+    }
+    __webpack_require__.m = modules, __webpack_require__.c = installedModules, __webpack_require__.d = function(exports, name, getter) {
+        __webpack_require__.o(exports, name) || Object.defineProperty(exports, name, {
+            enumerable: !0,
+            get: getter
+        });
+    }, __webpack_require__.r = function(exports) {
+        "undefined" != typeof Symbol && Symbol.toStringTag && Object.defineProperty(exports, Symbol.toStringTag, {
+            value: "Module"
+        }), Object.defineProperty(exports, "__esModule", {
             value: !0
         });
-        var ApiInformationWeb = __webpack_require__(2), ApiInformationNative = __webpack_require__(3), AsyncStorageWeb = __webpack_require__(5), DialogApiWeb = __webpack_require__(6), StorageApiNative = __webpack_require__(7), officeruntime_storage_web_1 = __webpack_require__(8), Experimentation = __webpack_require__(9), officeruntime_message_1 = __webpack_require__(10), DynamicRibbon = __webpack_require__(13), officeruntime_auth_1 = __webpack_require__(14);
-        window._useSDXSandbox ? window._OfficeRuntimeNative = __assign(__assign({}, window.OfficeRuntime), {
-            displayWebDialog: DialogApiWeb.displayWebDialog,
-            AsyncStorage: StorageApiNative.AsyncStorage,
-            storage: StorageApiNative.storage,
-            experimentation: Experimentation.experimentation,
-            apiInformation: ApiInformationNative.apiInformation,
-            message: officeruntime_message_1.Message.instance,
-            ui: DynamicRibbon.ui,
-            auth: officeruntime_auth_1.Auth.instance
-        }) : window._OfficeRuntimeNative = __assign(__assign({}, window.OfficeRuntime), {
-            displayWebDialog: DialogApiWeb.displayWebDialog,
-            AsyncStorage: AsyncStorageWeb,
-            storage: officeruntime_storage_web_1.storage,
-            experimentation: Experimentation.experimentation,
-            apiInformation: ApiInformationWeb.apiInformation,
-            message: officeruntime_message_1.Message.instance,
-            ui: DynamicRibbon.ui,
-            auth: officeruntime_auth_1.Auth.instance
-        }), Object.freeze(window._OfficeRuntimeNative);
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
+    }, __webpack_require__.t = function(value, mode) {
+        if (1 & mode && (value = __webpack_require__(value)), 8 & mode) return value;
+        if (4 & mode && "object" == typeof value && value && value.__esModule) return value;
+        var ns = Object.create(null);
+        if (__webpack_require__.r(ns), Object.defineProperty(ns, "default", {
+            enumerable: !0,
+            value: value
+        }), 2 & mode && "string" != typeof value) for (var key in value) __webpack_require__.d(ns, key, function(key) {
+            return value[key];
+        }.bind(null, key));
+        return ns;
+    }, __webpack_require__.n = function(module) {
+        var getter = module && module.__esModule ? function() {
+            return module.default;
+        } : function() {
+            return module;
+        };
+        return __webpack_require__.d(getter, "a", getter), getter;
+    }, __webpack_require__.o = function(object, property) {
+        return Object.prototype.hasOwnProperty.call(object, property);
+    }, __webpack_require__.p = "", __webpack_require__(__webpack_require__.s = 1);
+}([ function(module, exports) {
+    module.exports = OfficeExtensionBatch;
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    var __assign = this && this.__assign || function() {
+        return (__assign = Object.assign || function(t) {
+            for (var s, i = 1, n = arguments.length; i < n; i++) for (var p in s = arguments[i]) Object.prototype.hasOwnProperty.call(s, p) && (t[p] = s[p]);
+            return t;
+        }).apply(this, arguments);
+    };
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    });
+    var ApiInformationWeb = __webpack_require__(2), ApiInformationNative = __webpack_require__(3), AsyncStorageWeb = __webpack_require__(5), DialogApiWeb = __webpack_require__(6), StorageApiNative = __webpack_require__(7), officeruntime_storage_web_1 = __webpack_require__(8), Experimentation = __webpack_require__(9), officeruntime_message_1 = __webpack_require__(10), DynamicRibbon = __webpack_require__(13), officeruntime_auth_1 = __webpack_require__(14);
+    window._useSDXSandbox ? window._OfficeRuntimeNative = __assign(__assign({}, window.OfficeRuntime), {
+        displayWebDialog: DialogApiWeb.displayWebDialog,
+        AsyncStorage: StorageApiNative.AsyncStorage,
+        storage: StorageApiNative.storage,
+        experimentation: Experimentation.experimentation,
+        apiInformation: ApiInformationNative.apiInformation,
+        message: officeruntime_message_1.Message.instance,
+        ui: DynamicRibbon.ui,
+        auth: officeruntime_auth_1.Auth.instance
+    }) : window._OfficeRuntimeNative = __assign(__assign({}, window.OfficeRuntime), {
+        displayWebDialog: DialogApiWeb.displayWebDialog,
+        AsyncStorage: AsyncStorageWeb,
+        storage: officeruntime_storage_web_1.storage,
+        experimentation: Experimentation.experimentation,
+        apiInformation: ApiInformationWeb.apiInformation,
+        message: officeruntime_message_1.Message.instance,
+        ui: DynamicRibbon.ui,
+        auth: officeruntime_auth_1.Auth.instance
+    }), Object.freeze(window._OfficeRuntimeNative);
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.apiInformation = void 0, exports.apiInformation = {
+        isSetSupported: function(capability, version) {
+            try {
+                return !!(Office && Office.context && Office.context.requirements) && Office.context.requirements.isSetSupported(capability, version);
+            } catch (e) {
+                return !1;
+            }
+        }
+    };
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    (function(global) {
+        function getVersion(version) {
+            var temp = version.split("."), major = 0, minor = 0, patch = 0;
+            if (temp.length < 2 && isNaN(Number(version))) throw "version format incorrect";
+            if (major = Number(temp[0]), temp.length >= 2 && (minor = Number(temp[1])), temp.length >= 3 && (patch = Number(temp[2])), 
+            isNaN(major) || isNaN(minor) || isNaN(patch)) throw "version format incorrect";
+            return {
+                major: major,
+                minor: minor,
+                patch: patch
+            };
+        }
         Object.defineProperty(exports, "__esModule", {
             value: !0
         }), exports.apiInformation = void 0, exports.apiInformation = {
-            isSetSupported: function (capability, version) {
-                try {
-                    return !!(Office && Office.context && Office.context.requirements) && Office.context.requirements.isSetSupported(capability, version);
+            isSetSupported: function(capability, version) {
+                if ("string" != typeof capability) return !1;
+                if (null == version && (version = "0.0.0"), void 0 === global.__apiSets) return !1;
+                var sets = global.__apiSets, index = Object.keys(sets).map((function(key) {
+                    return key.toLowerCase();
+                })).indexOf(capability.toLowerCase());
+                if (index > -1) {
+                    var setMaxVersion = sets[Object.keys(sets)[index]];
+                    try {
+                        var minVersionNum = getVersion(version), setMaxVersionNum = void 0;
+                        if ((setMaxVersionNum = Array.isArray(setMaxVersion) ? function(versions, majorVersion) {
+                            for (var i = 0; i < versions.length; i++) {
+                                var v = getVersion(versions[i]);
+                                if (v.major == majorVersion) return v;
+                            }
+                            return {
+                                major: 0,
+                                minor: 0,
+                                patch: 0
+                            };
+                        }(setMaxVersion, minVersionNum.major) : getVersion(setMaxVersion)).major > 0) {
+                            if (setMaxVersionNum.major > minVersionNum.major) return !0;
+                            if (setMaxVersionNum.major == minVersionNum.major && setMaxVersionNum.minor > minVersionNum.minor) return !0;
+                            if (setMaxVersionNum.major == minVersionNum.major && setMaxVersionNum.minor == minVersionNum.minor && setMaxVersionNum.patch >= minVersionNum.patch) return !0;
+                        }
+                    } catch (e) {
+                        return !1;
+                    }
                 }
-                catch (e) {
-                    return !1;
-                }
+                return !1;
             }
         };
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        (function (global) {
-            function getVersion(version) {
-                var temp = version.split("."), major = 0, minor = 0, patch = 0;
-                if (temp.length < 2 && isNaN(Number(version)))
-                    throw "version format incorrect";
-                if (major = Number(temp[0]), temp.length >= 2 && (minor = Number(temp[1])), temp.length >= 3 && (patch = Number(temp[2])),
-                    isNaN(major) || isNaN(minor) || isNaN(patch))
-                    throw "version format incorrect";
-                return {
-                    major: major,
-                    minor: minor,
-                    patch: patch
-                };
+    }).call(this, __webpack_require__(4));
+}, function(module, exports) {
+    var g;
+    g = function() {
+        return this;
+    }();
+    try {
+        g = g || new Function("return this")();
+    } catch (e) {
+        "object" == typeof window && (g = window);
+    }
+    module.exports = g;
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.multiGet = exports.multiRemove = exports.multiSet = exports.getAllKeys = exports.clear = exports.removeItem = exports.setItem = exports.getItem = void 0;
+    var prefix = "_Office_AsyncStorage_";
+    function ensureFreshLocalStorage() {
+        window.localStorage.setItem("_Office_AsyncStorage_|_unusedKey_", null), window.localStorage.removeItem("_Office_AsyncStorage_|_unusedKey_");
+    }
+    function performAction(action, callback) {
+        return void 0 === callback && (callback = function() {}), new Promise((function(resolve, reject) {
+            try {
+                ensureFreshLocalStorage(), action(), callback(null), resolve();
+            } catch (e) {
+                callback(e), reject(e);
             }
-            Object.defineProperty(exports, "__esModule", {
-                value: !0
-            }), exports.apiInformation = void 0, exports.apiInformation = {
-                isSetSupported: function (capability, version) {
-                    if ("string" != typeof capability)
-                        return !1;
-                    if (null == version && (version = "0.0.0"), void 0 === global.__apiSets)
-                        return !1;
-                    var sets = global.__apiSets, index = Object.keys(sets).map((function (key) {
-                        return key.toLowerCase();
-                    })).indexOf(capability.toLowerCase());
-                    if (index > -1) {
-                        var setMaxVersion = sets[Object.keys(sets)[index]];
-                        try {
-                            var minVersionNum = getVersion(version), setMaxVersionNum = void 0;
-                            if ((setMaxVersionNum = Array.isArray(setMaxVersion) ? function (versions, majorVersion) {
-                                for (var i = 0; i < versions.length; i++) {
-                                    var v = getVersion(versions[i]);
-                                    if (v.major == majorVersion)
-                                        return v;
-                                }
-                                return {
-                                    major: 0,
-                                    minor: 0,
-                                    patch: 0
-                                };
-                            }(setMaxVersion, minVersionNum.major) : getVersion(setMaxVersion)).major > 0) {
-                                if (setMaxVersionNum.major > minVersionNum.major)
-                                    return !0;
-                                if (setMaxVersionNum.major == minVersionNum.major && setMaxVersionNum.minor > minVersionNum.minor)
-                                    return !0;
-                                if (setMaxVersionNum.major == minVersionNum.major && setMaxVersionNum.minor == minVersionNum.minor && setMaxVersionNum.patch >= minVersionNum.patch)
-                                    return !0;
-                            }
-                        }
-                        catch (e) {
-                            return !1;
-                        }
-                    }
-                    return !1;
-                }
-            };
-        }).call(this, __webpack_require__(4));
-    }, function (module, exports) {
-        var g;
-        g = function () {
-            return this;
-        }();
-        try {
-            g = g || new Function("return this")();
-        }
-        catch (e) {
-            "object" == typeof window && (g = window);
-        }
-        module.exports = g;
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.multiGet = exports.multiRemove = exports.multiSet = exports.getAllKeys = exports.clear = exports.removeItem = exports.setItem = exports.getItem = void 0;
-        var prefix = "_Office_AsyncStorage_";
-        function ensureFreshLocalStorage() {
-            window.localStorage.setItem("_Office_AsyncStorage_|_unusedKey_", null), window.localStorage.removeItem("_Office_AsyncStorage_|_unusedKey_");
-        }
-        function performAction(action, callback) {
-            return void 0 === callback && (callback = function () { }), new Promise((function (resolve, reject) {
+        }));
+    }
+    function performActionAndReturnResult(action, callback) {
+        return void 0 === callback && (callback = function() {}), new Promise((function(resolve, reject) {
+            try {
+                ensureFreshLocalStorage();
+                var result = action();
+                callback(null, result), resolve(result);
+            } catch (e) {
+                callback(e, null), reject(e);
+            }
+        }));
+    }
+    function performMultiAction(collection, action, callback) {
+        return void 0 === callback && (callback = function() {}), new Promise((function(resolve, reject) {
+            var errors = [];
+            try {
+                ensureFreshLocalStorage();
+            } catch (e) {
+                errors.push(e);
+            }
+            collection.forEach((function(item) {
                 try {
-                    ensureFreshLocalStorage(), action(), callback(null), resolve();
-                }
-                catch (e) {
-                    callback(e), reject(e);
-                }
-            }));
-        }
-        function performActionAndReturnResult(action, callback) {
-            return void 0 === callback && (callback = function () { }), new Promise((function (resolve, reject) {
-                try {
-                    ensureFreshLocalStorage();
-                    var result = action();
-                    callback(null, result), resolve(result);
-                }
-                catch (e) {
-                    callback(e, null), reject(e);
-                }
-            }));
-        }
-        function performMultiAction(collection, action, callback) {
-            return void 0 === callback && (callback = function () { }), new Promise((function (resolve, reject) {
-                var errors = [];
-                try {
-                    ensureFreshLocalStorage();
-                }
-                catch (e) {
+                    action(item);
+                } catch (e) {
                     errors.push(e);
                 }
-                collection.forEach((function (item) {
-                    try {
-                        action(item);
-                    }
-                    catch (e) {
-                        errors.push(e);
-                    }
-                })), callback(errors), errors.length > 0 ? reject(errors) : resolve();
+            })), callback(errors), errors.length > 0 ? reject(errors) : resolve();
+        }));
+    }
+    exports.getItem = function(key, callback) {
+        return performActionAndReturnResult((function() {
+            return window.localStorage.getItem(prefix + key);
+        }), callback);
+    }, exports.setItem = function(key, value, callback) {
+        return performAction((function() {
+            return window.localStorage.setItem(prefix + key, value);
+        }), callback);
+    }, exports.removeItem = function(key, callback) {
+        return performAction((function() {
+            return window.localStorage.removeItem(prefix + key);
+        }), callback);
+    }, exports.clear = function(callback) {
+        return performAction((function() {
+            Object.keys(window.localStorage).filter((function(fullKey) {
+                return 0 === fullKey.indexOf(prefix);
+            })).forEach((function(fullKey) {
+                return window.localStorage.removeItem(fullKey);
             }));
+        }), callback);
+    }, exports.getAllKeys = function(callback) {
+        return performActionAndReturnResult((function() {
+            return Object.keys(window.localStorage).filter((function(fullKey) {
+                return 0 === fullKey.indexOf(prefix);
+            })).map((function(fullKey) {
+                return fullKey.substr(prefix.length);
+            }));
+        }), callback);
+    }, exports.multiSet = function(keyValuePairs, callback) {
+        return performMultiAction(keyValuePairs, (function(_a) {
+            var key = _a[0], value = _a[1];
+            return window.localStorage.setItem(prefix + key, value);
+        }), callback);
+    }, exports.multiRemove = function(keys, callback) {
+        return performMultiAction(keys, (function(key) {
+            return window.localStorage.removeItem(prefix + key);
+        }), callback);
+    }, exports.multiGet = function(keys, callback) {
+        return new Promise((function(resolve, reject) {
+            callback || (callback = function() {});
+            var errors = [], results = keys.map((function(key) {
+                try {
+                    return [ key, window.localStorage.getItem(prefix + key) ];
+                } catch (e) {
+                    errors.push(e);
+                }
+            })).filter((function(pair) {
+                return pair;
+            }));
+            errors.length > 0 ? (callback(errors, results), reject(errors)) : (callback(null, results), 
+            resolve(results));
+        }));
+    };
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.displayWebDialog = exports.Dialog = void 0;
+    var OfficeExtension = __webpack_require__(0), Dialog = function() {
+        function Dialog(_dialog) {
+            this._dialog = _dialog;
         }
-        exports.getItem = function (key, callback) {
-            return performActionAndReturnResult((function () {
-                return window.localStorage.getItem(prefix + key);
+        return Dialog.prototype.close = function() {
+            return this._dialog.close(), OfficeExtension.CoreUtility.Promise.resolve();
+        }, Dialog;
+    }();
+    exports.Dialog = Dialog, exports.displayWebDialog = function(url, options) {
+        return new OfficeExtension.CoreUtility.Promise((function(resolve, reject) {
+            if (options.width && options.height && (!isInt(options.width) || !isInt(options.height))) throw new OfficeExtension.Error({
+                code: "InvalidArgument",
+                message: 'Dimensions must be "number%" or number.'
+            });
+            var dialog, dialogOptions = {
+                width: options.width ? parseInt(options.width, 10) : 50,
+                height: options.height ? parseInt(options.height, 10) : 50,
+                displayInIframe: options.displayInIFrame || !1
+            };
+            function messageHandler(args) {
+                options.onMessage && options.onMessage(args.message, dialog, args.origin);
+            }
+            function eventHandler(args) {
+                12006 === args.error ? options.onClose && options.onClose() : options.onRuntimeError && options.onRuntimeError(new OfficeExtension.Error(lookupErrorCodeAndMessage(args.error)), dialog);
+            }
+            function isInt(value) {
+                return /^(\-|\+)?([0-9]+)%?$/.test(value);
+            }
+            function lookupErrorCodeAndMessage(internalCode) {
+                var _a, table = ((_a = {})[12002] = {
+                    code: "InvalidUrl",
+                    message: "Cannot load URL, no such page or bad URL syntax."
+                }, _a[12003] = {
+                    code: "InvalidUrl",
+                    message: "HTTPS is required."
+                }, _a[12004] = {
+                    code: "Untrusted",
+                    message: "Domain is not trusted."
+                }, _a[12005] = {
+                    code: "InvalidUrl",
+                    message: "HTTPS is required."
+                }, _a[12007] = {
+                    code: "FailedToOpen",
+                    message: "Another dialog is already opened."
+                }, _a);
+                return table[internalCode] ? table[internalCode] : {
+                    code: "Unknown",
+                    message: "An unknown error has occured"
+                };
+            }
+            Office.context.ui.displayDialogAsync(url, dialogOptions, (function(asyncResult) {
+                "failed" === asyncResult.status ? reject(new OfficeExtension.Error(lookupErrorCodeAndMessage(asyncResult.error.code))) : ((dialog = asyncResult.value).addEventHandler(Office.EventType.DialogMessageReceived, messageHandler), 
+                dialog.addEventHandler(Office.EventType.DialogEventReceived, eventHandler), resolve(new Dialog(dialog)));
+            }));
+        }));
+    };
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    var extendStatics, __extends = this && this.__extends || (extendStatics = function(d, b) {
+        return (extendStatics = Object.setPrototypeOf || {
+            __proto__: []
+        } instanceof Array && function(d, b) {
+            d.__proto__ = b;
+        } || function(d, b) {
+            for (var p in b) b.hasOwnProperty(p) && (d[p] = b[p]);
+        })(d, b);
+    }, function(d, b) {
+        function __() {
+            this.constructor = d;
+        }
+        extendStatics(d, b), d.prototype = null === b ? Object.create(b) : (__.prototype = b.prototype, 
+        new __);
+    });
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.ErrorCodes = exports.PersistentKvStorageService = exports.storage = exports.AsyncStorage = void 0;
+    var OfficeExtension = __webpack_require__(0), _createTopLevelServiceObject = (OfficeExtension.BatchApiHelper.createPropertyObject, 
+    OfficeExtension.BatchApiHelper.createMethodObject, OfficeExtension.BatchApiHelper.createIndexerObject, 
+    OfficeExtension.BatchApiHelper.createRootServiceObject, OfficeExtension.BatchApiHelper.createTopLevelServiceObject), _invokeMethod = (OfficeExtension.BatchApiHelper.createChildItemObject, 
+    OfficeExtension.BatchApiHelper.invokeMethod), _isNullOrUndefined = (OfficeExtension.BatchApiHelper.invokeEnsureUnchanged, 
+    OfficeExtension.BatchApiHelper.invokeSetProperty, OfficeExtension.Utility.isNullOrUndefined), _toJson = (OfficeExtension.Utility.isUndefined, 
+    OfficeExtension.Utility.throwIfNotLoaded, OfficeExtension.Utility.throwIfApiNotSupported, 
+    OfficeExtension.Utility.load, OfficeExtension.Utility.retrieve, OfficeExtension.Utility.toJson), _fixObjectPathIfNecessary = OfficeExtension.Utility.fixObjectPathIfNecessary, _processRetrieveResult = (OfficeExtension.Utility._handleNavigationPropertyResults, 
+    OfficeExtension.Utility.adjustToDateTime, OfficeExtension.Utility.processRetrieveResult);
+    OfficeExtension.Utility.setMockData, OfficeExtension.CommonUtility.calculateApiFlags;
+    function callPersistentKvStorageManager(nativeCall, getValueOnSuccess) {
+        return new OfficeExtension.CoreUtility.Promise((function(resolve, reject) {
+            var storageManager = PersistentKvStorageManager.getInstance(), invokeId = storageManager.setCallBack((function(result, error) {
+                if (error) reject(error); else {
+                    var value = getValueOnSuccess(result);
+                    resolve(value);
+                }
+            }));
+            storageManager.ctx.sync().then((function() {
+                var storageService = storageManager.getPersistentKvStorageService();
+                return nativeCall(storageService, invokeId), storageManager.ctx.sync();
+            })).catch((function(e) {
+                reject(e);
+            }));
+        }));
+    }
+    function callStorageManager(nativeCall, getValueOnSuccess, callback) {
+        return new OfficeExtension.CoreUtility.Promise((function(resolve, reject) {
+            var storageManager = PersistentKvStorageManager.getInstance(), invokeId = storageManager.setCallBack((function(result, error) {
+                if (error) return callback && callback(error), void reject(error);
+                var value = getValueOnSuccess(result);
+                callback && callback(null, value), resolve(value);
+            }));
+            storageManager.ctx.sync().then((function() {
+                var storageService = storageManager.getPersistentKvStorageService();
+                return nativeCall(storageService, invokeId), storageManager.ctx.sync();
+            })).catch((function(e) {
+                reject(e);
+            }));
+        }));
+    }
+    exports.AsyncStorage = {
+        getItem: function(key, callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.multiGet(invokeId, JSON.stringify([ key ]));
+            }), (function(result) {
+                var parsedResult = JSON.parse(result);
+                return parsedResult && parsedResult[0] && parsedResult[0][1] ? parsedResult[0][1] : null;
             }), callback);
-        }, exports.setItem = function (key, value, callback) {
-            return performAction((function () {
-                return window.localStorage.setItem(prefix + key, value);
+        },
+        setItem: function(key, value, callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.multiSet(invokeId, JSON.stringify([ [ key, value ] ]));
+            }), (function() {
+                return null;
             }), callback);
-        }, exports.removeItem = function (key, callback) {
-            return performAction((function () {
-                return window.localStorage.removeItem(prefix + key);
+        },
+        removeItem: function(key, callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.multiRemove(invokeId, JSON.stringify([ key ]));
+            }), (function() {
+                return null;
             }), callback);
-        }, exports.clear = function (callback) {
-            return performAction((function () {
-                Object.keys(window.localStorage).filter((function (fullKey) {
-                    return 0 === fullKey.indexOf(prefix);
-                })).forEach((function (fullKey) {
-                    return window.localStorage.removeItem(fullKey);
+        },
+        multiGet: function(keys, callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.multiGet(invokeId, JSON.stringify(keys));
+            }), (function(result) {
+                var keyValues = JSON.parse(result), map = {};
+                return keyValues && keyValues.forEach((function(_a) {
+                    var key = _a[0], value = _a[1];
+                    return map[key] = value, value;
+                })), keys.map((function(key) {
+                    return [ key, map[key] ? map[key] : null ];
                 }));
             }), callback);
-        }, exports.getAllKeys = function (callback) {
-            return performActionAndReturnResult((function () {
-                return Object.keys(window.localStorage).filter((function (fullKey) {
+        },
+        multiSet: function(keyValuePairs, callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.multiSet(invokeId, JSON.stringify(keyValuePairs));
+            }), (function() {
+                return null;
+            }), callback);
+        },
+        multiRemove: function(keys, callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.multiRemove(invokeId, JSON.stringify(keys));
+            }), (function() {
+                return null;
+            }), callback);
+        },
+        getAllKeys: function(callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.getAllKeys(invokeId);
+            }), (function(result) {
+                return JSON.parse(result);
+            }), callback);
+        },
+        clear: function(callback) {
+            return callStorageManager((function(storage, invokeId) {
+                return storage.clear(invokeId);
+            }), (function() {
+                return null;
+            }), callback);
+        }
+    }, exports.storage = {
+        getItem: function(key) {
+            return callPersistentKvStorageManager((function(perStorage, invokeId) {
+                return perStorage.multiGet(invokeId, JSON.stringify([ key ]));
+            }), (function(result) {
+                var parsedResult = JSON.parse(result);
+                return parsedResult && parsedResult[0] && parsedResult[0][1] ? parsedResult[0][1] : null;
+            }));
+        },
+        setItem: function(key, value) {
+            return callPersistentKvStorageManager((function(perStorage, invokeId) {
+                return perStorage.multiSet(invokeId, JSON.stringify([ [ key, value ] ]));
+            }), (function() {
+                return null;
+            }));
+        },
+        removeItem: function(key) {
+            return callPersistentKvStorageManager((function(perStorage, invokeId) {
+                return perStorage.multiRemove(invokeId, JSON.stringify([ key ]));
+            }), (function() {
+                return null;
+            }));
+        },
+        getItems: function(keys) {
+            return callPersistentKvStorageManager((function(perStorage, invokeId) {
+                return perStorage.multiGet(invokeId, JSON.stringify(keys));
+            }), (function(result) {
+                var keyValues = JSON.parse(result), map = {};
+                return keys.forEach((function(k) {
+                    map[k] = null;
+                })), keyValues && keyValues.forEach((function(_a) {
+                    var key = _a[0], value = _a[1];
+                    return map[key] = value, value;
+                })), map;
+            }));
+        },
+        setItems: function(keyValues) {
+            var keyValuePairs = [];
+            for (var key in keyValues) keyValues.hasOwnProperty(key) && keyValuePairs.push([ key, keyValues[key] ]);
+            return callPersistentKvStorageManager((function(storage, invokeId) {
+                return storage.multiSet(invokeId, JSON.stringify(keyValuePairs));
+            }), (function() {
+                return null;
+            }));
+        },
+        removeItems: function(keys) {
+            return callPersistentKvStorageManager((function(perStorage, invokeId) {
+                return perStorage.multiRemove(invokeId, JSON.stringify(keys));
+            }), (function() {
+                return null;
+            }));
+        },
+        getKeys: function() {
+            return callPersistentKvStorageManager((function(perStorage, invokeId) {
+                return perStorage.getAllKeys(invokeId);
+            }), (function(result) {
+                return JSON.parse(result);
+            }));
+        }
+    };
+    var PersistentKvStorageManager = function() {
+        function PersistentKvStorageManager() {
+            var _this = this;
+            this._invokeId = 0, this._callDict = {}, this.ctx = new OfficeExtension.ClientRequestContext, 
+            this._perkvstorService = PersistentKvStorageService.newObject(this.ctx), this._eventResult = this._perkvstorService.onPersistentStorageMessage.add((function(args) {
+                OfficeExtension.Utility.log("persistentKvStoragegMessageHandler:" + JSON.stringify(args));
+                var callback = _this._callDict[args.invokeId];
+                callback && (callback(args.message, args.error), delete _this._callDict[args.invokeId]);
+            }));
+        }
+        return PersistentKvStorageManager.getInstance = function() {
+            return void 0 === PersistentKvStorageManager.instance ? PersistentKvStorageManager.instance = new PersistentKvStorageManager : PersistentKvStorageManager.instance._perkvstorService = PersistentKvStorageService.newObject(PersistentKvStorageManager.instance.ctx), 
+            PersistentKvStorageManager.instance;
+        }, PersistentKvStorageManager.prototype.getPersistentKvStorageService = function() {
+            return this._perkvstorService;
+        }, PersistentKvStorageManager.prototype.getCallBack = function(callId) {
+            return this._callDict[callId];
+        }, PersistentKvStorageManager.prototype.setCallBack = function(callback) {
+            var id = this._invokeId;
+            return this._callDict[this._invokeId++] = callback, id;
+        }, PersistentKvStorageManager;
+    }(), PersistentKvStorageService = function(_super) {
+        function PersistentKvStorageService() {
+            return null !== _super && _super.apply(this, arguments) || this;
+        }
+        return __extends(PersistentKvStorageService, _super), Object.defineProperty(PersistentKvStorageService.prototype, "_className", {
+            get: function() {
+                return "PersistentKvStorageService";
+            },
+            enumerable: !1,
+            configurable: !0
+        }), PersistentKvStorageService.prototype.clear = function(id) {
+            _invokeMethod(this, "Clear", 1, [ id ], 4, 0);
+        }, PersistentKvStorageService.prototype.getAllKeys = function(id) {
+            _invokeMethod(this, "GetAllKeys", 1, [ id ], 4, 0);
+        }, PersistentKvStorageService.prototype.multiGet = function(id, jsonKeys) {
+            _invokeMethod(this, "MultiGet", 1, [ id, jsonKeys ], 4, 0);
+        }, PersistentKvStorageService.prototype.multiRemove = function(id, jsonKeys) {
+            _invokeMethod(this, "MultiRemove", 1, [ id, jsonKeys ], 4, 0);
+        }, PersistentKvStorageService.prototype.multiSet = function(id, jsonKeyValue) {
+            _invokeMethod(this, "MultiSet", 1, [ id, jsonKeyValue ], 4, 0);
+        }, PersistentKvStorageService.prototype._handleResult = function(value) {
+            (_super.prototype._handleResult.call(this, value), _isNullOrUndefined(value)) || _fixObjectPathIfNecessary(this, value);
+        }, PersistentKvStorageService.prototype._handleRetrieveResult = function(value, result) {
+            _super.prototype._handleRetrieveResult.call(this, value, result), _processRetrieveResult(this, value, result);
+        }, PersistentKvStorageService.newObject = function(context) {
+            return _createTopLevelServiceObject(PersistentKvStorageService, context, "Microsoft.PersistentKvStorage.PersistentKvStorageService", !1, 4);
+        }, Object.defineProperty(PersistentKvStorageService.prototype, "onPersistentStorageMessage", {
+            get: function() {
+                return this.m_persistentStorageMessage || (this.m_persistentStorageMessage = new OfficeExtension.GenericEventHandlers(this.context, this, "PersistentStorageMessage", {
+                    eventType: 65537,
+                    registerFunc: function() {},
+                    unregisterFunc: function() {},
+                    getTargetIdFunc: function() {
+                        return null;
+                    },
+                    eventArgsTransformFunc: function(args) {
+                        var perkvstorArgs, internalCode, _a, table;
+                        try {
+                            var parsedMessage = JSON.parse(args.message), hr = parseInt(parsedMessage.errorCode), error = 0 != hr ? new OfficeExtension.Error((internalCode = hr, 
+                            (_a = {})[16389] = {
+                                code: "GenericException",
+                                message: "Unknown error."
+                            }, _a[65535] = {
+                                code: "Unexcepted",
+                                message: "Catastrophic failure."
+                            }, _a[14] = {
+                                code: "OutOfMemory",
+                                message: "Ran out of memory."
+                            }, _a[87] = {
+                                code: "InvalidArg",
+                                message: "One or more arguments are invalid."
+                            }, _a[16385] = {
+                                code: "NotImplemented",
+                                message: "Not implemented."
+                            }, _a[6] = {
+                                code: "BadHandle",
+                                message: "File Handle is not Set."
+                            }, _a[5] = {
+                                code: "AccessDenied",
+                                message: "Can't read the Storage File."
+                            }, (table = _a)[internalCode] ? table[internalCode] : {
+                                code: "Unknown",
+                                message: "An unknown error has occured"
+                            })) : null;
+                            perkvstorArgs = {
+                                invokeId: parsedMessage.invokeId,
+                                message: parsedMessage.message,
+                                error: error
+                            };
+                        } catch (e) {
+                            perkvstorArgs = {
+                                invokeId: -1,
+                                message: e.message,
+                                error: new OfficeExtension.Error({
+                                    code: "GenericException",
+                                    message: "Unknown error"
+                                })
+                            };
+                        }
+                        return OfficeExtension.Utility._createPromiseFromResult(perkvstorArgs);
+                    }
+                })), this.m_persistentStorageMessage;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), PersistentKvStorageService.prototype.toJSON = function() {
+            return _toJson(this, {}, {});
+        }, PersistentKvStorageService;
+    }(OfficeExtension.ClientObject);
+    exports.PersistentKvStorageService = PersistentKvStorageService, function(ErrorCodes) {
+        ErrorCodes.generalException = "GeneralException";
+    }(exports.ErrorCodes || (exports.ErrorCodes = {}));
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.storage = void 0;
+    var prefix = "_OfficeRuntime_Storage_";
+    function ensureFreshLocalStorage() {
+        window.localStorage.setItem("_OfficeRuntime_Storage_|_unusedKey_", null), window.localStorage.removeItem("_OfficeRuntime_Storage_|_unusedKey_");
+    }
+    function performAction(action) {
+        return new Promise((function(resolve, reject) {
+            try {
+                ensureFreshLocalStorage(), action(), resolve();
+            } catch (e) {
+                reject(e);
+            }
+        }));
+    }
+    function performActionAndReturnResult(action) {
+        return new Promise((function(resolve, reject) {
+            try {
+                ensureFreshLocalStorage(), resolve(action());
+            } catch (e) {
+                reject(e);
+            }
+        }));
+    }
+    function performMultiAction(collection, action) {
+        return new Promise((function(resolve, reject) {
+            var errors = [];
+            try {
+                ensureFreshLocalStorage();
+            } catch (e) {
+                errors.push(e);
+            }
+            for (var key in collection) if (collection.hasOwnProperty(key) || Array.isArray(collection)) try {
+                Array.isArray(collection) ? action(collection[key]) : action(key);
+            } catch (e) {
+                errors.push(e);
+            }
+            errors.length > 0 ? reject(new Error("Unknown error.")) : resolve();
+        }));
+    }
+    exports.storage = {
+        getItem: function(key) {
+            return performActionAndReturnResult((function() {
+                return window.localStorage.getItem(prefix + key);
+            }));
+        },
+        setItem: function(key, value) {
+            return performAction((function() {
+                return window.localStorage.setItem(prefix + key, value);
+            }));
+        },
+        removeItem: function(key) {
+            return performAction((function() {
+                return window.localStorage.removeItem(prefix + key);
+            }));
+        },
+        getItems: function(keys) {
+            return new Promise((function(resolve, reject) {
+                var result = {}, errors = [];
+                try {
+                    ensureFreshLocalStorage();
+                } catch (e) {
+                    reject(e);
+                }
+                keys.forEach((function(key) {
+                    try {
+                        var value = window.localStorage.getItem(prefix + key);
+                        result[key] = value || null;
+                    } catch (e) {
+                        errors.push(e);
+                    }
+                })), errors.length > 0 ? reject(new Error("Unknown error.")) : resolve(result);
+            }));
+        },
+        setItems: function(keyValues) {
+            return performMultiAction(keyValues, (function(key) {
+                return window.localStorage.setItem(prefix + key, keyValues[key]);
+            }));
+        },
+        removeItems: function(keys) {
+            return performMultiAction(keys, (function(key) {
+                window.localStorage.removeItem(prefix + key);
+            }));
+        },
+        getKeys: function() {
+            return performActionAndReturnResult((function() {
+                return Object.keys(window.localStorage).filter((function(fullKey) {
                     return 0 === fullKey.indexOf(prefix);
-                })).map((function (fullKey) {
+                })).map((function(fullKey) {
                     return fullKey.substr(prefix.length);
                 }));
-            }), callback);
-        }, exports.multiSet = function (keyValuePairs, callback) {
-            return performMultiAction(keyValuePairs, (function (_a) {
-                var key = _a[0], value = _a[1];
-                return window.localStorage.setItem(prefix + key, value);
-            }), callback);
-        }, exports.multiRemove = function (keys, callback) {
-            return performMultiAction(keys, (function (key) {
-                return window.localStorage.removeItem(prefix + key);
-            }), callback);
-        }, exports.multiGet = function (keys, callback) {
-            return new Promise((function (resolve, reject) {
-                callback || (callback = function () { });
-                var errors = [], results = keys.map((function (key) {
-                    try {
-                        return [key, window.localStorage.getItem(prefix + key)];
-                    }
-                    catch (e) {
-                        errors.push(e);
-                    }
-                })).filter((function (pair) {
-                    return pair;
-                }));
-                errors.length > 0 ? (callback(errors, results), reject(errors)) : (callback(null, results),
-                    resolve(results));
             }));
-        };
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.displayWebDialog = exports.Dialog = void 0;
-        var OfficeExtension = __webpack_require__(0), Dialog = function () {
-            function Dialog(_dialog) {
-                this._dialog = _dialog;
+        }
+    };
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    var __awaiter = this && this.__awaiter || function(thisArg, _arguments, P, generator) {
+        return new (P || (P = Promise))((function(resolve, reject) {
+            function fulfilled(value) {
+                try {
+                    step(generator.next(value));
+                } catch (e) {
+                    reject(e);
+                }
             }
-            return Dialog.prototype.close = function () {
-                return this._dialog.close(), OfficeExtension.CoreUtility.Promise.resolve();
-            }, Dialog;
-        }();
-        exports.Dialog = Dialog, exports.displayWebDialog = function (url, options) {
-            return new OfficeExtension.CoreUtility.Promise((function (resolve, reject) {
-                if (options.width && options.height && (!isInt(options.width) || !isInt(options.height)))
-                    throw new OfficeExtension.Error({
-                        code: "InvalidArgument",
-                        message: 'Dimensions must be "number%" or number.'
-                    });
-                var dialog, dialogOptions = {
-                    width: options.width ? parseInt(options.width, 10) : 50,
-                    height: options.height ? parseInt(options.height, 10) : 50,
-                    displayInIframe: options.displayInIFrame || !1
-                };
-                function messageHandler(args) {
-                    options.onMessage && options.onMessage(args.message, dialog);
+            function rejected(value) {
+                try {
+                    step(generator.throw(value));
+                } catch (e) {
+                    reject(e);
                 }
-                function eventHandler(args) {
-                    12006 === args.error ? options.onClose && options.onClose() : options.onRuntimeError && options.onRuntimeError(new OfficeExtension.Error(lookupErrorCodeAndMessage(args.error)), dialog);
-                }
-                function isInt(value) {
-                    return /^(\-|\+)?([0-9]+)%?$/.test(value);
-                }
-                function lookupErrorCodeAndMessage(internalCode) {
-                    var _a, table = ((_a = {})[12002] = {
-                        code: "InvalidUrl",
-                        message: "Cannot load URL, no such page or bad URL syntax."
-                    }, _a[12003] = {
-                        code: "InvalidUrl",
-                        message: "HTTPS is required."
-                    }, _a[12004] = {
-                        code: "Untrusted",
-                        message: "Domain is not trusted."
-                    }, _a[12005] = {
-                        code: "InvalidUrl",
-                        message: "HTTPS is required."
-                    }, _a[12007] = {
-                        code: "FailedToOpen",
-                        message: "Another dialog is already opened."
-                    }, _a);
-                    return table[internalCode] ? table[internalCode] : {
-                        code: "Unknown",
-                        message: "An unknown error has occured"
+            }
+            function step(result) {
+                var value;
+                result.done ? resolve(result.value) : (value = result.value, value instanceof P ? value : new P((function(resolve) {
+                    resolve(value);
+                }))).then(fulfilled, rejected);
+            }
+            step((generator = generator.apply(thisArg, _arguments || [])).next());
+        }));
+    }, __generator = this && this.__generator || function(thisArg, body) {
+        var f, y, t, g, _ = {
+            label: 0,
+            sent: function() {
+                if (1 & t[0]) throw t[1];
+                return t[1];
+            },
+            trys: [],
+            ops: []
+        };
+        return g = {
+            next: verb(0),
+            throw: verb(1),
+            return: verb(2)
+        }, "function" == typeof Symbol && (g[Symbol.iterator] = function() {
+            return this;
+        }), g;
+        function verb(n) {
+            return function(v) {
+                return function(op) {
+                    if (f) throw new TypeError("Generator is already executing.");
+                    for (;_; ) try {
+                        if (f = 1, y && (t = 2 & op[0] ? y.return : op[0] ? y.throw || ((t = y.return) && t.call(y), 
+                        0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+                        switch (y = 0, t && (op = [ 2 & op[0], t.value ]), op[0]) {
+                          case 0:
+                          case 1:
+                            t = op;
+                            break;
+
+                          case 4:
+                            return _.label++, {
+                                value: op[1],
+                                done: !1
+                            };
+
+                          case 5:
+                            _.label++, y = op[1], op = [ 0 ];
+                            continue;
+
+                          case 7:
+                            op = _.ops.pop(), _.trys.pop();
+                            continue;
+
+                          default:
+                            if (!(t = _.trys, (t = t.length > 0 && t[t.length - 1]) || 6 !== op[0] && 2 !== op[0])) {
+                                _ = 0;
+                                continue;
+                            }
+                            if (3 === op[0] && (!t || op[1] > t[0] && op[1] < t[3])) {
+                                _.label = op[1];
+                                break;
+                            }
+                            if (6 === op[0] && _.label < t[1]) {
+                                _.label = t[1], t = op;
+                                break;
+                            }
+                            if (t && _.label < t[2]) {
+                                _.label = t[2], _.ops.push(op);
+                                break;
+                            }
+                            t[2] && _.ops.pop(), _.trys.pop();
+                            continue;
+                        }
+                        op = body.call(thisArg, _);
+                    } catch (e) {
+                        op = [ 6, e ], y = 0;
+                    } finally {
+                        f = t = 0;
+                    }
+                    if (5 & op[0]) throw op[1];
+                    return {
+                        value: op[0] ? op[1] : void 0,
+                        done: !0
                     };
-                }
-                Office.context.ui.displayDialogAsync(url, dialogOptions, (function (asyncResult) {
-                    "failed" === asyncResult.status ? reject(new OfficeExtension.Error(lookupErrorCodeAndMessage(asyncResult.error.code))) : ((dialog = asyncResult.value).addEventHandler(Office.EventType.DialogMessageReceived, messageHandler),
-                        dialog.addEventHandler(Office.EventType.DialogEventReceived, eventHandler), resolve(new Dialog(dialog)));
-                }));
-            }));
-        };
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        var extendStatics, __extends = this && this.__extends || (extendStatics = function (d, b) {
-            return (extendStatics = Object.setPrototypeOf || {
-                __proto__: []
-            } instanceof Array && function (d, b) {
-                d.__proto__ = b;
-            } || function (d, b) {
-                for (var p in b)
-                    b.hasOwnProperty(p) && (d[p] = b[p]);
-            })(d, b);
-        }, function (d, b) {
-            function __() {
-                this.constructor = d;
-            }
-            extendStatics(d, b), d.prototype = null === b ? Object.create(b) : (__.prototype = b.prototype,
-                new __);
-        });
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.ErrorCodes = exports.PersistentKvStorageService = exports.storage = exports.AsyncStorage = void 0;
-        var OfficeExtension = __webpack_require__(0), _createTopLevelServiceObject = (OfficeExtension.BatchApiHelper.createPropertyObject,
-            OfficeExtension.BatchApiHelper.createMethodObject, OfficeExtension.BatchApiHelper.createIndexerObject,
-            OfficeExtension.BatchApiHelper.createRootServiceObject, OfficeExtension.BatchApiHelper.createTopLevelServiceObject), _invokeMethod = (OfficeExtension.BatchApiHelper.createChildItemObject,
-            OfficeExtension.BatchApiHelper.invokeMethod), _isNullOrUndefined = (OfficeExtension.BatchApiHelper.invokeEnsureUnchanged,
-            OfficeExtension.BatchApiHelper.invokeSetProperty, OfficeExtension.Utility.isNullOrUndefined), _toJson = (OfficeExtension.Utility.isUndefined,
-            OfficeExtension.Utility.throwIfNotLoaded, OfficeExtension.Utility.throwIfApiNotSupported,
-            OfficeExtension.Utility.load, OfficeExtension.Utility.retrieve, OfficeExtension.Utility.toJson), _fixObjectPathIfNecessary = OfficeExtension.Utility.fixObjectPathIfNecessary, _processRetrieveResult = (OfficeExtension.Utility._handleNavigationPropertyResults,
-            OfficeExtension.Utility.adjustToDateTime, OfficeExtension.Utility.processRetrieveResult);
-        OfficeExtension.Utility.setMockData, OfficeExtension.CommonUtility.calculateApiFlags;
-        function callPersistentKvStorageManager(nativeCall, getValueOnSuccess) {
-            return new OfficeExtension.CoreUtility.Promise((function (resolve, reject) {
-                var storageManager = PersistentKvStorageManager.getInstance(), invokeId = storageManager.setCallBack((function (result, error) {
-                    if (error)
-                        reject(error);
-                    else {
-                        var value = getValueOnSuccess(result);
-                        resolve(value);
-                    }
-                }));
-                storageManager.ctx.sync().then((function () {
-                    var storageService = storageManager.getPersistentKvStorageService();
-                    return nativeCall(storageService, invokeId), storageManager.ctx.sync();
-                }))["catch"]((function (e) {
-                    reject(e);
-                }));
-            }));
-        }
-        function callStorageManager(nativeCall, getValueOnSuccess, callback) {
-            return new OfficeExtension.CoreUtility.Promise((function (resolve, reject) {
-                var storageManager = PersistentKvStorageManager.getInstance(), invokeId = storageManager.setCallBack((function (result, error) {
-                    if (error)
-                        return callback && callback(error), void reject(error);
-                    var value = getValueOnSuccess(result);
-                    callback && callback(null, value), resolve(value);
-                }));
-                storageManager.ctx.sync().then((function () {
-                    var storageService = storageManager.getPersistentKvStorageService();
-                    return nativeCall(storageService, invokeId), storageManager.ctx.sync();
-                }))["catch"]((function (e) {
-                    reject(e);
-                }));
-            }));
-        }
-        exports.AsyncStorage = {
-            getItem: function (key, callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.multiGet(invokeId, JSON.stringify([key]));
-                }), (function (result) {
-                    var parsedResult = JSON.parse(result);
-                    return parsedResult && parsedResult[0] && parsedResult[0][1] ? parsedResult[0][1] : null;
-                }), callback);
-            },
-            setItem: function (key, value, callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.multiSet(invokeId, JSON.stringify([[key, value]]));
-                }), (function () {
-                    return null;
-                }), callback);
-            },
-            removeItem: function (key, callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.multiRemove(invokeId, JSON.stringify([key]));
-                }), (function () {
-                    return null;
-                }), callback);
-            },
-            multiGet: function (keys, callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.multiGet(invokeId, JSON.stringify(keys));
-                }), (function (result) {
-                    var keyValues = JSON.parse(result), map = {};
-                    return keyValues && keyValues.forEach((function (_a) {
-                        var key = _a[0], value = _a[1];
-                        return map[key] = value, value;
-                    })), keys.map((function (key) {
-                        return [key, map[key] ? map[key] : null];
-                    }));
-                }), callback);
-            },
-            multiSet: function (keyValuePairs, callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.multiSet(invokeId, JSON.stringify(keyValuePairs));
-                }), (function () {
-                    return null;
-                }), callback);
-            },
-            multiRemove: function (keys, callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.multiRemove(invokeId, JSON.stringify(keys));
-                }), (function () {
-                    return null;
-                }), callback);
-            },
-            getAllKeys: function (callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.getAllKeys(invokeId);
-                }), (function (result) {
-                    return JSON.parse(result);
-                }), callback);
-            },
-            clear: function (callback) {
-                return callStorageManager((function (storage, invokeId) {
-                    return storage.clear(invokeId);
-                }), (function () {
-                    return null;
-                }), callback);
-            }
-        }, exports.storage = {
-            getItem: function (key) {
-                return callPersistentKvStorageManager((function (perStorage, invokeId) {
-                    return perStorage.multiGet(invokeId, JSON.stringify([key]));
-                }), (function (result) {
-                    var parsedResult = JSON.parse(result);
-                    return parsedResult && parsedResult[0] && parsedResult[0][1] ? parsedResult[0][1] : null;
-                }));
-            },
-            setItem: function (key, value) {
-                return callPersistentKvStorageManager((function (perStorage, invokeId) {
-                    return perStorage.multiSet(invokeId, JSON.stringify([[key, value]]));
-                }), (function () {
-                    return null;
-                }));
-            },
-            removeItem: function (key) {
-                return callPersistentKvStorageManager((function (perStorage, invokeId) {
-                    return perStorage.multiRemove(invokeId, JSON.stringify([key]));
-                }), (function () {
-                    return null;
-                }));
-            },
-            getItems: function (keys) {
-                return callPersistentKvStorageManager((function (perStorage, invokeId) {
-                    return perStorage.multiGet(invokeId, JSON.stringify(keys));
-                }), (function (result) {
-                    var keyValues = JSON.parse(result), map = {};
-                    return keys.forEach((function (k) {
-                        map[k] = null;
-                    })), keyValues && keyValues.forEach((function (_a) {
-                        var key = _a[0], value = _a[1];
-                        return map[key] = value, value;
-                    })), map;
-                }));
-            },
-            setItems: function (keyValues) {
-                var keyValuePairs = [];
-                for (var key in keyValues)
-                    keyValues.hasOwnProperty(key) && keyValuePairs.push([key, keyValues[key]]);
-                return callPersistentKvStorageManager((function (storage, invokeId) {
-                    return storage.multiSet(invokeId, JSON.stringify(keyValuePairs));
-                }), (function () {
-                    return null;
-                }));
-            },
-            removeItems: function (keys) {
-                return callPersistentKvStorageManager((function (perStorage, invokeId) {
-                    return perStorage.multiRemove(invokeId, JSON.stringify(keys));
-                }), (function () {
-                    return null;
-                }));
-            },
-            getKeys: function () {
-                return callPersistentKvStorageManager((function (perStorage, invokeId) {
-                    return perStorage.getAllKeys(invokeId);
-                }), (function (result) {
-                    return JSON.parse(result);
-                }));
-            }
-        };
-        var PersistentKvStorageManager = function () {
-            function PersistentKvStorageManager() {
-                var _this = this;
-                this._invokeId = 0, this._callDict = {}, this.ctx = new OfficeExtension.ClientRequestContext,
-                    this._perkvstorService = PersistentKvStorageService.newObject(this.ctx), this._eventResult = this._perkvstorService.onPersistentStorageMessage.add((function (args) {
-                    OfficeExtension.Utility.log("persistentKvStoragegMessageHandler:" + JSON.stringify(args));
-                    var callback = _this._callDict[args.invokeId];
-                    callback && (callback(args.message, args.error), delete _this._callDict[args.invokeId]);
-                }));
-            }
-            return PersistentKvStorageManager.getInstance = function () {
-                return void 0 === PersistentKvStorageManager.instance ? PersistentKvStorageManager.instance = new PersistentKvStorageManager : PersistentKvStorageManager.instance._perkvstorService = PersistentKvStorageService.newObject(PersistentKvStorageManager.instance.ctx),
-                    PersistentKvStorageManager.instance;
-            }, PersistentKvStorageManager.prototype.getPersistentKvStorageService = function () {
-                return this._perkvstorService;
-            }, PersistentKvStorageManager.prototype.getCallBack = function (callId) {
-                return this._callDict[callId];
-            }, PersistentKvStorageManager.prototype.setCallBack = function (callback) {
-                var id = this._invokeId;
-                return this._callDict[this._invokeId++] = callback, id;
-            }, PersistentKvStorageManager;
-        }(), PersistentKvStorageService = function (_super) {
-            function PersistentKvStorageService() {
-                return null !== _super && _super.apply(this, arguments) || this;
-            }
-            return __extends(PersistentKvStorageService, _super), Object.defineProperty(PersistentKvStorageService.prototype, "_className", {
-                get: function () {
-                    return "PersistentKvStorageService";
-                },
-                enumerable: !1,
-                configurable: !0
-            }), PersistentKvStorageService.prototype.clear = function (id) {
-                _invokeMethod(this, "Clear", 1, [id], 4, 0);
-            }, PersistentKvStorageService.prototype.getAllKeys = function (id) {
-                _invokeMethod(this, "GetAllKeys", 1, [id], 4, 0);
-            }, PersistentKvStorageService.prototype.multiGet = function (id, jsonKeys) {
-                _invokeMethod(this, "MultiGet", 1, [id, jsonKeys], 4, 0);
-            }, PersistentKvStorageService.prototype.multiRemove = function (id, jsonKeys) {
-                _invokeMethod(this, "MultiRemove", 1, [id, jsonKeys], 4, 0);
-            }, PersistentKvStorageService.prototype.multiSet = function (id, jsonKeyValue) {
-                _invokeMethod(this, "MultiSet", 1, [id, jsonKeyValue], 4, 0);
-            }, PersistentKvStorageService.prototype._handleResult = function (value) {
-                (_super.prototype._handleResult.call(this, value), _isNullOrUndefined(value)) || _fixObjectPathIfNecessary(this, value);
-            }, PersistentKvStorageService.prototype._handleRetrieveResult = function (value, result) {
-                _super.prototype._handleRetrieveResult.call(this, value, result), _processRetrieveResult(this, value, result);
-            }, PersistentKvStorageService.newObject = function (context) {
-                return _createTopLevelServiceObject(PersistentKvStorageService, context, "Microsoft.PersistentKvStorage.PersistentKvStorageService", !1, 4);
-            }, Object.defineProperty(PersistentKvStorageService.prototype, "onPersistentStorageMessage", {
-                get: function () {
-                    return this.m_persistentStorageMessage || (this.m_persistentStorageMessage = new OfficeExtension.GenericEventHandlers(this.context, this, "PersistentStorageMessage", {
-                        eventType: 65537,
-                        registerFunc: function () { },
-                        unregisterFunc: function () { },
-                        getTargetIdFunc: function () {
-                            return null;
-                        },
-                        eventArgsTransformFunc: function (args) {
-                            var perkvstorArgs, internalCode, _a, table;
-                            try {
-                                var parsedMessage = JSON.parse(args.message), hr = parseInt(parsedMessage.errorCode), error = 0 != hr ? new OfficeExtension.Error((internalCode = hr,
-                                    (_a = {})[16389] = {
-                                        code: "GenericException",
-                                        message: "Unknown error."
-                                    }, _a[65535] = {
-                                    code: "Unexcepted",
-                                    message: "Catastrophic failure."
-                                }, _a[14] = {
-                                    code: "OutOfMemory",
-                                    message: "Ran out of memory."
-                                }, _a[87] = {
-                                    code: "InvalidArg",
-                                    message: "One or more arguments are invalid."
-                                }, _a[16385] = {
-                                    code: "NotImplemented",
-                                    message: "Not implemented."
-                                }, _a[6] = {
-                                    code: "BadHandle",
-                                    message: "File Handle is not Set."
-                                }, _a[5] = {
-                                    code: "AccessDenied",
-                                    message: "Can't read the Storage File."
-                                }, (table = _a)[internalCode] ? table[internalCode] : {
-                                    code: "Unknown",
-                                    message: "An unknown error has occured"
-                                })) : null;
-                                perkvstorArgs = {
-                                    invokeId: parsedMessage.invokeId,
-                                    message: parsedMessage.message,
-                                    error: error
-                                };
-                            }
-                            catch (e) {
-                                perkvstorArgs = {
-                                    invokeId: -1,
-                                    message: e.message,
-                                    error: new OfficeExtension.Error({
-                                        code: "GenericException",
-                                        message: "Unknown error"
-                                    })
-                                };
-                            }
-                            return OfficeExtension.Utility._createPromiseFromResult(perkvstorArgs);
-                        }
-                    })), this.m_persistentStorageMessage;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), PersistentKvStorageService.prototype.toJSON = function () {
-                return _toJson(this, {}, {});
-            }, PersistentKvStorageService;
-        }(OfficeExtension.ClientObject);
-        exports.PersistentKvStorageService = PersistentKvStorageService, function (ErrorCodes) {
-            ErrorCodes.generalException = "GeneralException";
-        }(exports.ErrorCodes || (exports.ErrorCodes = {}));
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.storage = void 0;
-        var prefix = "_OfficeRuntime_Storage_";
-        function ensureFreshLocalStorage() {
-            window.localStorage.setItem("_OfficeRuntime_Storage_|_unusedKey_", null), window.localStorage.removeItem("_OfficeRuntime_Storage_|_unusedKey_");
-        }
-        function performAction(action) {
-            return new Promise((function (resolve, reject) {
-                try {
-                    ensureFreshLocalStorage(), action(), resolve();
-                }
-                catch (e) {
-                    reject(e);
-                }
-            }));
-        }
-        function performActionAndReturnResult(action) {
-            return new Promise((function (resolve, reject) {
-                try {
-                    ensureFreshLocalStorage(), resolve(action());
-                }
-                catch (e) {
-                    reject(e);
-                }
-            }));
-        }
-        function performMultiAction(collection, action) {
-            return new Promise((function (resolve, reject) {
-                var errors = [];
-                try {
-                    ensureFreshLocalStorage();
-                }
-                catch (e) {
-                    errors.push(e);
-                }
-                for (var key in collection)
-                    if (collection.hasOwnProperty(key) || Array.isArray(collection))
-                        try {
-                            Array.isArray(collection) ? action(collection[key]) : action(key);
-                        }
-                        catch (e) {
-                            errors.push(e);
-                        }
-                errors.length > 0 ? reject(new Error("Unknown error.")) : resolve();
-            }));
-        }
-        exports.storage = {
-            getItem: function (key) {
-                return performActionAndReturnResult((function () {
-                    return window.localStorage.getItem(prefix + key);
-                }));
-            },
-            setItem: function (key, value) {
-                return performAction((function () {
-                    return window.localStorage.setItem(prefix + key, value);
-                }));
-            },
-            removeItem: function (key) {
-                return performAction((function () {
-                    return window.localStorage.removeItem(prefix + key);
-                }));
-            },
-            getItems: function (keys) {
-                return new Promise((function (resolve, reject) {
-                    var result = {}, errors = [];
-                    try {
-                        ensureFreshLocalStorage();
-                    }
-                    catch (e) {
-                        reject(e);
-                    }
-                    keys.forEach((function (key) {
-                        try {
-                            var value = window.localStorage.getItem(prefix + key);
-                            result[key] = value || null;
-                        }
-                        catch (e) {
-                            errors.push(e);
-                        }
-                    })), errors.length > 0 ? reject(new Error("Unknown error.")) : resolve(result);
-                }));
-            },
-            setItems: function (keyValues) {
-                return performMultiAction(keyValues, (function (key) {
-                    return window.localStorage.setItem(prefix + key, keyValues[key]);
-                }));
-            },
-            removeItems: function (keys) {
-                return performMultiAction(keys, (function (key) {
-                    window.localStorage.removeItem(prefix + key);
-                }));
-            },
-            getKeys: function () {
-                return performActionAndReturnResult((function () {
-                    return Object.keys(window.localStorage).filter((function (fullKey) {
-                        return 0 === fullKey.indexOf(prefix);
-                    })).map((function (fullKey) {
-                        return fullKey.substr(prefix.length);
-                    }));
-                }));
-            }
-        };
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
-            return new (P || (P = Promise))((function (resolve, reject) {
-                function fulfilled(value) {
-                    try {
-                        step(generator.next(value));
-                    }
-                    catch (e) {
-                        reject(e);
-                    }
-                }
-                function rejected(value) {
-                    try {
-                        step(generator["throw"](value));
-                    }
-                    catch (e) {
-                        reject(e);
-                    }
-                }
-                function step(result) {
-                    var value;
-                    result.done ? resolve(result.value) : (value = result.value, value instanceof P ? value : new P((function (resolve) {
-                        resolve(value);
-                    }))).then(fulfilled, rejected);
-                }
-                step((generator = generator.apply(thisArg, _arguments || [])).next());
-            }));
-        }, __generator = this && this.__generator || function (thisArg, body) {
-            var f, y, t, g, _ = {
-                label: 0,
-                sent: function () {
-                    if (1 & t[0])
-                        throw t[1];
-                    return t[1];
-                },
-                trys: [],
-                ops: []
+                }([ n, v ]);
             };
-            return g = {
-                next: verb(0),
-                "throw": verb(1),
-                "return": verb(2)
-            }, "function" == typeof Symbol && (g[Symbol.iterator] = function () {
-                return this;
-            }), g;
-            function verb(n) {
-                return function (v) {
-                    return function (op) {
-                        if (f)
-                            throw new TypeError("Generator is already executing.");
-                        for (; _;)
-                            try {
-                                if (f = 1, y && (t = 2 & op[0] ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y),
-                                    0) : y.next) && !(t = t.call(y, op[1])).done)
-                                    return t;
-                                switch (y = 0, t && (op = [2 & op[0], t.value]), op[0]) {
-                                    case 0:
-                                    case 1:
-                                        t = op;
-                                        break;
-                                    case 4:
-                                        return _.label++, {
-                                            value: op[1],
-                                            done: !1
-                                        };
-                                    case 5:
-                                        _.label++, y = op[1], op = [0];
-                                        continue;
-                                    case 7:
-                                        op = _.ops.pop(), _.trys.pop();
-                                        continue;
-                                    default:
-                                        if (!(t = _.trys, (t = t.length > 0 && t[t.length - 1]) || 6 !== op[0] && 2 !== op[0])) {
-                                            _ = 0;
-                                            continue;
-                                        }
-                                        if (3 === op[0] && (!t || op[1] > t[0] && op[1] < t[3])) {
-                                            _.label = op[1];
-                                            break;
-                                        }
-                                        if (6 === op[0] && _.label < t[1]) {
-                                            _.label = t[1], t = op;
-                                            break;
-                                        }
-                                        if (t && _.label < t[2]) {
-                                            _.label = t[2], _.ops.push(op);
-                                            break;
-                                        }
-                                        t[2] && _.ops.pop(), _.trys.pop();
-                                        continue;
-                                }
-                                op = body.call(thisArg, _);
-                            }
-                            catch (e) {
-                                op = [6, e], y = 0;
-                            }
-                            finally {
-                                f = t = 0;
-                            }
-                        if (5 & op[0])
-                            throw op[1];
-                        return {
-                            value: op[0] ? op[1] : void 0,
-                            done: !0
-                        };
-                    }([n, v]);
-                };
+        }
+    };
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.experimentation = void 0;
+    var ExperimentationNative = function() {
+        function ExperimentationNative() {}
+        return ExperimentationNative.prototype.getBooleanFeatureGate = function(featureName, defaultValue) {
+            try {
+                var featureGateValue = Microsoft.Office.WebExtension.FeatureGates[featureName];
+                return "true" === featureGateValue.toString().toLowerCase() || !0 === featureGateValue;
+            } catch (error) {
+                return defaultValue;
             }
-        };
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.experimentation = void 0;
-        var ExperimentationNative = function () {
-            function ExperimentationNative() { }
-            return ExperimentationNative.prototype.getBooleanFeatureGate = function (featureName, defaultValue) {
-                try {
-                    var featureGateValue = Microsoft.Office.WebExtension.FeatureGates[featureName];
-                    return "true" === featureGateValue.toString().toLowerCase() || !0 === featureGateValue;
-                }
-                catch (error) {
-                    return defaultValue;
-                }
-            }, ExperimentationNative.prototype.getIntFeatureGate = function (featureName, defaultValue) {
-                try {
-                    var featureGateValue = parseInt(Microsoft.Office.WebExtension.FeatureGates[featureName]);
-                    return isNaN(featureGateValue) ? defaultValue : featureGateValue;
-                }
-                catch (error) {
-                    return defaultValue;
-                }
-            }, ExperimentationNative.prototype.getStringFeatureGate = function (featureName, defaultValue) {
-                try {
-                    var featureGateValue = Microsoft.Office.WebExtension.FeatureGates[featureName];
-                    return null == featureGateValue ? defaultValue : featureGateValue;
-                }
-                catch (error) {
-                    return defaultValue;
-                }
-            }, ExperimentationNative.prototype.getChangeGate = function (changeGateName) {
-                return this.getBooleanFeatureGate(changeGateName, !0);
-            }, ExperimentationNative.prototype.getBooleanFeatureGateAsync = function (featureName, defaultValue) {
-                return __awaiter(this, void 0, void 0, (function () {
-                    var context, feature;
-                    return __generator(this, (function (_b) {
-                        switch (_b.label) {
-                            case 0:
-                                return _b.trys.push([0, 2, , 3]), context = this.getRequestContext(), feature = context.flighting.getFeature(featureName, "Boolean", defaultValue),
-                                    context.load(feature), [4, context.sync()];
-                            case 1:
-                                return _b.sent(), [2, feature.value];
-                            case 2:
-                                return _b.sent(), [2, Promise.resolve(defaultValue)];
-                            case 3:
-                                return [2];
-                        }
-                    }));
-                }));
-            }, ExperimentationNative.prototype.getStringFeatureGateAsync = function (featureName, defaultValue) {
-                return __awaiter(this, void 0, void 0, (function () {
-                    var context, feature;
-                    return __generator(this, (function (_b) {
-                        switch (_b.label) {
-                            case 0:
-                                return _b.trys.push([0, 2, , 3]), context = this.getRequestContext(), feature = context.flighting.getFeature(featureName, "String", defaultValue),
-                                    context.load(feature), [4, context.sync()];
-                            case 1:
-                                return _b.sent(), [2, feature.value];
-                            case 2:
-                                return _b.sent(), [2, Promise.resolve(defaultValue)];
-                            case 3:
-                                return [2];
-                        }
-                    }));
-                }));
-            }, ExperimentationNative.prototype.getIntFeatureGateAsync = function (featureName, defaultValue) {
-                return __awaiter(this, void 0, void 0, (function () {
-                    var context, feature;
-                    return __generator(this, (function (_b) {
-                        switch (_b.label) {
-                            case 0:
-                                return _b.trys.push([0, 2, , 3]), context = this.getRequestContext(), feature = context.flighting.getFeature(featureName, "Integer", defaultValue),
-                                    context.load(feature), [4, context.sync()];
-                            case 1:
-                                return _b.sent(), [2, feature.value];
-                            case 2:
-                                return _b.sent(), [2, Promise.resolve(defaultValue)];
-                            case 3:
-                                return [2];
-                        }
-                    }));
-                }));
-            }, ExperimentationNative.prototype.getRequestContext = function () {
-                var ctx;
-                if (Office.context.platform !== Office.PlatformType.OfficeOnline) {
-                    switch (Office.context.host) {
-                        case Office.HostType.Excel:
-                            ctx = new Excel.RequestContext;
-                            break;
-                        case Office.HostType.OneNote:
-                            ctx = new OneNote.RequestContext;
-                            break;
-                        case Office.HostType.PowerPoint:
-                            ctx = new PowerPoint.RequestContext;
-                            break;
-                        case Office.HostType.Word:
-                            ctx = new Word.RequestContext;
-                            break;
-                        default:
-                            throw new Error("Unknown Application " + Office.context.host);
-                    }
-                    return ctx;
-                }
-            }, ExperimentationNative;
-        }();
-        exports.experimentation = new ExperimentationNative;
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.Message = void 0;
-        var Message_1 = __webpack_require__(11);
-        Object.defineProperty(exports, "Message", {
-            enumerable: !0,
-            get: function () {
-                return Message_1.Message;
+        }, ExperimentationNative.prototype.getIntFeatureGate = function(featureName, defaultValue) {
+            try {
+                var featureGateValue = parseInt(Microsoft.Office.WebExtension.FeatureGates[featureName]);
+                return isNaN(featureGateValue) ? defaultValue : featureGateValue;
+            } catch (error) {
+                return defaultValue;
             }
-        });
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.Message = void 0;
-        var ListenerManager_1 = __webpack_require__(12), Message = function () {
-            function Message() {
-                this.listeners = {};
+        }, ExperimentationNative.prototype.getStringFeatureGate = function(featureName, defaultValue) {
+            try {
+                var featureGateValue = Microsoft.Office.WebExtension.FeatureGates[featureName];
+                return null == featureGateValue ? defaultValue : featureGateValue;
+            } catch (error) {
+                return defaultValue;
             }
-            return Message.prototype.on = function (eventName, listener) {
-                return this.add(eventName, listener), new Promise((function (resolve) {
-                    resolve();
-                }));
-            }, Message.prototype.off = function (eventName, listener) {
-                return this.remove(eventName, listener), new Promise((function (resolve) {
-                    resolve();
-                }));
-            }, Message.prototype.emit = function (eventName, message) {
-                return this.send(eventName, message), new Promise((function (resolve) {
-                    resolve();
-                }));
-            }, Object.defineProperty(Message, "instance", {
-                get: function () {
-                    return Message.singleton || (Message.singleton = new Message), this.singleton;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Message.prototype.setupReceive = function () {
-                Office && Office.context && Office.context.messaging && !Office.context.messaging.onMessage && (Office.context.messaging.onMessage = this.receiveMessage.bind(this));
-            }, Message.prototype.add = function (eventName, listener) {
-                this.listeners.hasOwnProperty(eventName) || (this.listeners[eventName] = new ListenerManager_1.ListenerManager,
-                    this.setupReceive()), this.listeners[eventName].add(listener);
-            }, Message.prototype.remove = function (eventName, listener) {
-                this.listeners.hasOwnProperty(eventName) && (listener ? this.listeners[eventName].remove(listener) : delete this.listeners[eventName]);
-            }, Message.prototype.send = function (eventName, message) {
-                var wrapped = {
-                    eventName: eventName,
-                    message: message
-                };
-                Office && Office.context && Office.context.messaging && Office.context.messaging.sendMessage && Office.context.messaging.sendMessage(wrapped);
-            }, Message.prototype.receiveMessage = function (wrapped) {
-                var eventName = wrapped.eventName, message = wrapped.message;
-                this.listeners.hasOwnProperty(eventName) && this.listeners[eventName].call(message);
-            }, Message;
-        }();
-        exports.Message = Message;
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.ListenerManager = void 0;
-        var ListenerManager = function () {
-            function ListenerManager() {
-                this.listeners = [];
-            }
-            return ListenerManager.prototype.add = function (listener) {
-                this.listeners.push(listener);
-            }, ListenerManager.prototype.remove = function (listener) {
-                var index = this.listeners.lastIndexOf(listener);
-                -1 !== index && this.listeners.splice(index, 1);
-            }, ListenerManager.prototype.call = function (message) {
-                this.listeners.forEach((function (listener) {
-                    return listener(message);
-                }));
-            }, ListenerManager;
-        }();
-        exports.ListenerManager = ListenerManager;
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.Ribbon = exports.ui = void 0, exports.ui = {
-            getRibbon: function () {
-                return new Promise((function (resolve, reject) {
-                    resolve(new Ribbon);
-                }));
-            }
-        };
-        var Ribbon = function () {
-            function Ribbon() {
-                this.requestContext = new OfficeCore.RequestContext, OSF.WebAuth && "web" == OSF._OfficeAppFactory.getHostInfo().hostPlatform && (this.requestContext._customData = "WacPartition");
-            }
-            return Ribbon.prototype.requestUpdate = function (input) {
-                var ribbon = this.requestContext.ribbon;
-                return input.tabs.filter((function (tab) {
-                    return !!tab.id;
-                })).forEach((function (tab) {
-                    var ribbonTab = ribbon.getTab(tab.id);
-                    void 0 !== tab.visible && null !== tab.visible && ribbonTab.setVisibility(tab.visible),
-                        tab.controls.filter((function (control) {
-                            return !!control.id;
-                        })).forEach((function (control) {
-                            var ribbonControl = ribbon.getButton(control.id);
-                            void 0 !== control.enabled && null !== control.enabled && (ribbonControl.enabled = control.enabled);
-                        }));
-                })), this.requestContext.sync();
-            }, Ribbon;
-        }();
-        exports.Ribbon = Ribbon;
-    }, function (module, exports, __webpack_require__) {
-        "use strict";
-        Object.defineProperty(exports, "__esModule", {
-            value: !0
-        }), exports.Auth = void 0;
-        var OfficeExtension = __webpack_require__(0), Auth = function () {
-            function Auth() { }
-            return Auth.prototype.getAccessToken = function (params) {
-                return new OfficeExtension.CoreUtility.Promise((function (resolve, reject) {
-                    try {
-                        Office.context.auth.getAccessTokenAsync(params || {}, (function (result) {
-                            "succeeded" === result.status ? resolve(result.value) : reject(result.error);
-                        }));
-                    }
-                    catch (error) {
-                        reject(error);
+        }, ExperimentationNative.prototype.getChangeGate = function(changeGateName) {
+            return this.getBooleanFeatureGate(changeGateName, !0);
+        }, ExperimentationNative.prototype.getBooleanFeatureGateAsync = function(featureName, defaultValue) {
+            return __awaiter(this, void 0, void 0, (function() {
+                var context, feature;
+                return __generator(this, (function(_b) {
+                    switch (_b.label) {
+                      case 0:
+                        return _b.trys.push([ 0, 2, , 3 ]), context = this.getRequestContext(), feature = context.flighting.getFeature(featureName, "Boolean", defaultValue), 
+                        context.load(feature), [ 4, context.sync() ];
+
+                      case 1:
+                        return _b.sent(), [ 2, feature.value ];
+
+                      case 2:
+                        return _b.sent(), [ 2, Promise.resolve(defaultValue) ];
+
+                      case 3:
+                        return [ 2 ];
                     }
                 }));
-            }, Object.defineProperty(Auth, "instance", {
-                get: function () {
-                    return Auth.singleton || (Auth.singleton = new Auth), Auth.singleton;
-                },
-                enumerable: !1,
-                configurable: !0
-            }), Auth;
-        }();
-        exports.Auth = Auth;
-    }]);
+            }));
+        }, ExperimentationNative.prototype.getStringFeatureGateAsync = function(featureName, defaultValue) {
+            return __awaiter(this, void 0, void 0, (function() {
+                var context, feature;
+                return __generator(this, (function(_b) {
+                    switch (_b.label) {
+                      case 0:
+                        return _b.trys.push([ 0, 2, , 3 ]), context = this.getRequestContext(), feature = context.flighting.getFeature(featureName, "String", defaultValue), 
+                        context.load(feature), [ 4, context.sync() ];
+
+                      case 1:
+                        return _b.sent(), [ 2, feature.value ];
+
+                      case 2:
+                        return _b.sent(), [ 2, Promise.resolve(defaultValue) ];
+
+                      case 3:
+                        return [ 2 ];
+                    }
+                }));
+            }));
+        }, ExperimentationNative.prototype.getIntFeatureGateAsync = function(featureName, defaultValue) {
+            return __awaiter(this, void 0, void 0, (function() {
+                var context, feature;
+                return __generator(this, (function(_b) {
+                    switch (_b.label) {
+                      case 0:
+                        return _b.trys.push([ 0, 2, , 3 ]), context = this.getRequestContext(), feature = context.flighting.getFeature(featureName, "Integer", defaultValue), 
+                        context.load(feature), [ 4, context.sync() ];
+
+                      case 1:
+                        return _b.sent(), [ 2, feature.value ];
+
+                      case 2:
+                        return _b.sent(), [ 2, Promise.resolve(defaultValue) ];
+
+                      case 3:
+                        return [ 2 ];
+                    }
+                }));
+            }));
+        }, ExperimentationNative.prototype.getRequestContext = function() {
+            var ctx;
+            if (Office.context.platform !== Office.PlatformType.OfficeOnline) {
+                switch (Office.context.host) {
+                  case Office.HostType.Excel:
+                    ctx = new Excel.RequestContext;
+                    break;
+
+                  case Office.HostType.OneNote:
+                    ctx = new OneNote.RequestContext;
+                    break;
+
+                  case Office.HostType.PowerPoint:
+                    ctx = new PowerPoint.RequestContext;
+                    break;
+
+                  case Office.HostType.Word:
+                    ctx = new Word.RequestContext;
+                    break;
+
+                  default:
+                    throw new Error("Unknown Application " + Office.context.host);
+                }
+                return ctx;
+            }
+        }, ExperimentationNative;
+    }();
+    exports.experimentation = new ExperimentationNative;
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.Message = void 0;
+    var Message_1 = __webpack_require__(11);
+    Object.defineProperty(exports, "Message", {
+        enumerable: !0,
+        get: function() {
+            return Message_1.Message;
+        }
+    });
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.Message = void 0;
+    var ListenerManager_1 = __webpack_require__(12), Message = function() {
+        function Message() {
+            this.listeners = {};
+        }
+        return Message.prototype.on = function(eventName, listener) {
+            return this.add(eventName, listener), new Promise((function(resolve) {
+                resolve();
+            }));
+        }, Message.prototype.off = function(eventName, listener) {
+            return this.remove(eventName, listener), new Promise((function(resolve) {
+                resolve();
+            }));
+        }, Message.prototype.emit = function(eventName, message) {
+            return this.send(eventName, message), new Promise((function(resolve) {
+                resolve();
+            }));
+        }, Object.defineProperty(Message, "instance", {
+            get: function() {
+                return Message.singleton || (Message.singleton = new Message), this.singleton;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Message.prototype.setupReceive = function() {
+            Office && Office.context && Office.context.messaging && !Office.context.messaging.onMessage && (Office.context.messaging.onMessage = this.receiveMessage.bind(this));
+        }, Message.prototype.add = function(eventName, listener) {
+            this.listeners.hasOwnProperty(eventName) || (this.listeners[eventName] = new ListenerManager_1.ListenerManager, 
+            this.setupReceive()), this.listeners[eventName].add(listener);
+        }, Message.prototype.remove = function(eventName, listener) {
+            this.listeners.hasOwnProperty(eventName) && (listener ? this.listeners[eventName].remove(listener) : delete this.listeners[eventName]);
+        }, Message.prototype.send = function(eventName, message) {
+            var wrapped = {
+                eventName: eventName,
+                message: message
+            };
+            Office && Office.context && Office.context.messaging && Office.context.messaging.sendMessage && Office.context.messaging.sendMessage(wrapped);
+        }, Message.prototype.receiveMessage = function(wrapped) {
+            var eventName = wrapped.eventName, message = wrapped.message;
+            this.listeners.hasOwnProperty(eventName) && this.listeners[eventName].call(message);
+        }, Message;
+    }();
+    exports.Message = Message;
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.ListenerManager = void 0;
+    var ListenerManager = function() {
+        function ListenerManager() {
+            this.listeners = [];
+        }
+        return ListenerManager.prototype.add = function(listener) {
+            this.listeners.push(listener);
+        }, ListenerManager.prototype.remove = function(listener) {
+            var index = this.listeners.lastIndexOf(listener);
+            -1 !== index && this.listeners.splice(index, 1);
+        }, ListenerManager.prototype.call = function(message) {
+            this.listeners.forEach((function(listener) {
+                return listener(message);
+            }));
+        }, ListenerManager;
+    }();
+    exports.ListenerManager = ListenerManager;
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.Ribbon = exports.ui = void 0, exports.ui = {
+        getRibbon: function() {
+            return new Promise((function(resolve, reject) {
+                resolve(new Ribbon);
+            }));
+        }
+    };
+    var Ribbon = function() {
+        function Ribbon() {
+            this.requestContext = new OfficeCore.RequestContext, OSF.WebAuth && "web" == OSF._OfficeAppFactory.getHostInfo().hostPlatform && (this.requestContext._customData = "WacPartition");
+        }
+        return Ribbon.prototype.requestUpdate = function(input) {
+            var ribbon = this.requestContext.ribbon;
+            return input.tabs.filter((function(tab) {
+                return !!tab.id;
+            })).forEach((function(tab) {
+                var ribbonTab = ribbon.getTab(tab.id);
+                void 0 !== tab.visible && null !== tab.visible && ribbonTab.setVisibility(tab.visible), 
+                tab.controls.filter((function(control) {
+                    return !!control.id;
+                })).forEach((function(control) {
+                    var ribbonControl = ribbon.getButton(control.id);
+                    void 0 !== control.enabled && null !== control.enabled && (ribbonControl.enabled = control.enabled);
+                }));
+            })), this.requestContext.sync();
+        }, Ribbon;
+    }();
+    exports.Ribbon = Ribbon;
+}, function(module, exports, __webpack_require__) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", {
+        value: !0
+    }), exports.Auth = void 0;
+    var OfficeExtension = __webpack_require__(0), Auth = function() {
+        function Auth() {}
+        return Auth.prototype.getAccessToken = function(params) {
+            return new OfficeExtension.CoreUtility.Promise((function(resolve, reject) {
+                try {
+                    Office.context.auth.getAccessTokenAsync(params || {}, (function(result) {
+                        "succeeded" === result.status ? resolve(result.value) : reject(result.error);
+                    }));
+                } catch (error) {
+                    reject(error);
+                }
+            }));
+        }, Object.defineProperty(Auth, "instance", {
+            get: function() {
+                return Auth.singleton || (Auth.singleton = new Auth), Auth.singleton;
+            },
+            enumerable: !1,
+            configurable: !0
+        }), Auth;
+    }();
+    exports.Auth = Auth;
+} ]);
+//# sourceMappingURL=officeruntime-agave-mac-bundle.g.debug.js.map
 window.OfficeRuntime = window._OfficeRuntimeNative;
-var Office;
-(function (Office) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
-    storage: (typeof OfficeRuntime !== 'undefined') ? (_a = OfficeRuntime) === null || _a === void 0 ? void 0 : _a.storage : undefined;
-    auth: (typeof OfficeRuntime !== 'undefined') ? (_b = OfficeRuntime) === null || _b === void 0 ? void 0 : _b.auth : undefined;
-    getAccessToken: (typeof OfficeRuntime !== 'undefined') ? (_d = (_c = OfficeRuntime) === null || _c === void 0 ? void 0 : _c.auth) === null || _d === void 0 ? void 0 : _d.getAccessToken : undefined;
-    addin: (typeof OfficeRuntime !== 'undefined') ? (_e = OfficeRuntime) === null || _e === void 0 ? void 0 : _e.addin : undefined;
-    isSetSupported: (typeof OfficeRuntime !== 'undefined') ? (_g = (_f = OfficeRuntime) === null || _f === void 0 ? void 0 : _f.apiInformation) === null || _g === void 0 ? void 0 : _g.isSetSupported : undefined;
-    license: (typeof OfficeRuntime !== 'undefined') ? (_h = OfficeRuntime) === null || _h === void 0 ? void 0 : _h.license : undefined;
-    message: (typeof OfficeRuntime !== 'undefined') ? (_j = OfficeRuntime) === null || _j === void 0 ? void 0 : _j.message : undefined;
-})(Office || (Office = {}));
+
+function exposeOfficeRuntimeThroughOfficeNamespace(OfficeRuntime, Office) {
+    var _a, _b;
+    if (typeof OfficeRuntime === "undefined") {
+        if (typeof window !== "undefined") {
+            OfficeRuntime = window === null || window === void 0 ? void 0 : window.OfficeRuntime;
+        }
+    }
+    if (typeof OfficeRuntime === "undefined") {
+        OfficeRuntime = {};
+    }
+    if (typeof Office !== "undefined") {
+        Office.storage = Office.storage || (OfficeRuntime === null || OfficeRuntime === void 0 ? void 0 : OfficeRuntime.storage);
+        Office.auth = Office.auth || (OfficeRuntime === null || OfficeRuntime === void 0 ? void 0 : OfficeRuntime.auth);
+        Office.getAccessToken = Office.getAccessToken || ((_a = OfficeRuntime === null || OfficeRuntime === void 0 ? void 0 : OfficeRuntime.auth) === null || _a === void 0 ? void 0 : _a.getAccessToken);
+        Office.addin = Office.addin || (OfficeRuntime === null || OfficeRuntime === void 0 ? void 0 : OfficeRuntime.addin);
+        Office.isSetSupported = Office.isSetSupported || ((_b = OfficeRuntime === null || OfficeRuntime === void 0 ? void 0 : OfficeRuntime.apiInformation) === null || _b === void 0 ? void 0 : _b.isSetSupported);
+        Office.license = Office.license || (OfficeRuntime === null || OfficeRuntime === void 0 ? void 0 : OfficeRuntime.license);
+        Office.message = Office.message || (OfficeRuntime === null || OfficeRuntime === void 0 ? void 0 : OfficeRuntime.message);
+    }
+}
+exposeOfficeRuntimeThroughOfficeNamespace(typeof OfficeRuntime !== "undefined" ? OfficeRuntime || undefined : undefined, typeof Office !== "undefined" ? Office || undefined : undefined);
 if (typeof OSFPerformance !== "undefined") {
     OSFPerformance.hostInitializationEnd = OSFPerformance.now();
+    OSFPerformance.totalJSHeapSize = OSFPerformance.getTotalJSHeapSize();
+    OSFPerformance.usedJSHeapSize = OSFPerformance.getUsedJSHeapSize();
+    OSFPerformance.jsHeapSizeLimit = OSFPerformance.getJSHeapSizeLimit();
 }
 OfficeExtension.Utility._doApiNotSupportedCheck = true;
+
+

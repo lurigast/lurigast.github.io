@@ -1,6 +1,6 @@
 /* Outlook specific API library */
 /* Version: 15.0.4927.1000 */
-/* Update: 1 */
+/* Update: 3 */
 /*
 	Copyright (c) Microsoft Corporation.  All rights reserved.
 */
@@ -4283,34 +4283,62 @@ var OfficeExt;
 					OSF.DDA.DispIdHost.addEventSupport(this._pseudoDocument,this._eventDispatch);
 					this._pseudoDocument.addHandlerAsync(Microsoft.Office.WebExtension.EventType.AppCommandInvoked,this._processAppCommandInvocation,onRegisterCompleted)
 				};
-				AppCommandManager.prototype._verifyManifestCallback=function(callbackName)
-				{
-					var defaultResult={
-							callback: null,
-							errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeInvalidCallback
-						};
-					callbackName=callbackName.trim();
-					try
-					{
-						var callList=callbackName.split(".");
-						var parentObject=window;
-						for(var i=0; i < callList.length - 1; i++)
-							if(parentObject[callList[i]] && typeof parentObject[callList[i]]=="object")
-								parentObject=parentObject[callList[i]];
-							else
-								return defaultResult;
-						var callbackFunc=parentObject[callList[callList.length - 1]];
-						if(typeof callbackFunc !="function")
-							return defaultResult
-					}
-					catch(e)
-					{
-						return defaultResult
-					}
-					return{
-							callback: callbackFunc,
-							errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess
+				AppCommandManager.prototype._verifyManifestCallback = function (callbackName) {
+					var defaultResult = { callback: null, errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError };
+					callbackName = callbackName.trim();
+					try {
+						var callbackFunc = this._getCallbackFunc(callbackName);
+						if (typeof callbackFunc != "function") {
+							return defaultResult;
 						}
+					}
+					catch (e) {
+						return defaultResult;
+					}
+					return { callback: callbackFunc, errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess };
+				};
+				AppCommandManager.prototype._getUseAssociatedActionsOnly = function () {
+					if (this._useAssociatedActionsOnly == null) {
+						this._useAssociatedActionsOnly = false;
+						try {
+							if (window["useAssociatedActionsOnly"] === true) {
+								this._useAssociatedActionsOnly = true;
+							}
+							else {
+								this._useAssociatedActionsOnly = OSF._OfficeAppFactory.getLoadScriptHelper().getUseAssociatedActionsOnlyDefined();
+							}
+						}
+						catch (e) { }
+					}
+					return this._useAssociatedActionsOnly;
+				};
+				AppCommandManager.prototype._getCallbackFuncFromWindow = function (callbackName) {
+					var callList = callbackName.split(".");
+					var parentObject = window;
+					for (var i = 0; i < callList.length - 1; i++) {
+						if (parentObject[callList[i]] && (typeof parentObject[callList[i]] == "object" || typeof parentObject[callList[i]] == "function")) {
+							parentObject = parentObject[callList[i]];
+						}
+						else {
+							return null;
+						}
+					}
+					var callbackFunc = parentObject[callList[callList.length - 1]];
+					return callbackFunc;
+				};
+				AppCommandManager.prototype._getCallbackFuncFromActionAssociateTable = function (callbackName) {
+					var nameUpperCase = callbackName.toUpperCase();
+					return Office.actions._association.mappings[nameUpperCase];
+				};
+				AppCommandManager.prototype._getCallbackFunc = function (callbackName) {
+					var callbackFunc = null;
+					if (!this._getUseAssociatedActionsOnly()) {
+						callbackFunc = this._getCallbackFuncFromWindow(callbackName);
+					}
+					if (!callbackFunc) {
+						callbackFunc = this._getCallbackFuncFromActionAssociateTable(callbackName);
+					}
+					return callbackFunc;
 				};
 				AppCommandManager.prototype._invokeAppCommandCompletedMethod=function(appCommandId, resultCode, data)
 				{
@@ -5593,7 +5621,13 @@ OSF.DDA.SafeArray.Delegate.MessageParent=function OSF_DDA_SafeArray_Delegate$Mes
 		}
 		var startTime=(new Date()).getTime();
 		var message=args.hostCallArgs[Microsoft.Office.WebExtension.Parameters.MessageToParent];
-		window.external.MessageParent(message);
+		if (typeof window.external.MessageParent2 !='undefined' && typeof OsfOMToken !='undefined' && OsfOMToken) {
+			var targetOrigin=args.hostCallArgs[Microsoft.Office.WebExtension.Parameters.TargetOrigin];
+			window.external.MessageParent2(message, targetOrigin, OsfOMToken);
+		}
+		else {
+			window.external.MessageParent(message);
+		}
 		if (args.onReceiving) {
 			args.onReceiving();
 		}

@@ -5,6 +5,9 @@ var OSFPerformance;
     OSFPerformance.officeExecuteEnd = 0;
     OSFPerformance.hostInitializationStart = 0;
     OSFPerformance.hostInitializationEnd = 0;
+    OSFPerformance.totalJSHeapSize = 0;
+    OSFPerformance.usedJSHeapSize = 0;
+    OSFPerformance.jsHeapSizeLimit = 0;
     OSFPerformance.getAppContextStart = 0;
     OSFPerformance.getAppContextEnd = 0;
     OSFPerformance.createOMEnd = 0;
@@ -19,6 +22,33 @@ var OSFPerformance;
         }
     }
     OSFPerformance.now = now;
+    function getTotalJSHeapSize() {
+        if (typeof (performance) !== 'undefined' && performance.memory) {
+            return performance.memory.totalJSHeapSize;
+        }
+        else {
+            return 0;
+        }
+    }
+    OSFPerformance.getTotalJSHeapSize = getTotalJSHeapSize;
+    function getUsedJSHeapSize() {
+        if (typeof (performance) !== 'undefined' && performance.memory) {
+            return performance.memory.usedJSHeapSize;
+        }
+        else {
+            return 0;
+        }
+    }
+    OSFPerformance.getUsedJSHeapSize = getUsedJSHeapSize;
+    function getJSHeapSizeLimit() {
+        if (typeof (performance) !== 'undefined' && performance.memory) {
+            return performance.memory.jsHeapSizeLimit;
+        }
+        else {
+            return 0;
+        }
+    }
+    OSFPerformance.getJSHeapSizeLimit = getJSHeapSizeLimit;
 })(OSFPerformance || (OSFPerformance = {}));
 ;
 OSFPerformance.officeExecuteStartDate = Date.now();
@@ -252,6 +282,7 @@ var ScriptLoading;
             this.scriptTelemetryBuffer = [];
             this.osfControlAppCorrelationId = "";
             this.basePath = null;
+            this.getUseAssociatedActionsOnly = null;
         }
         LoadScriptHelper.prototype.isScriptLoading = function (id) {
             return !!(this.loadedScriptByIds[id] && this.loadedScriptByIds[id].hasStarted);
@@ -280,16 +311,29 @@ var ScriptLoading;
                 var scriptsCount = scripts.length;
                 var officeScripts = [this.constantNames.OfficeJS, this.constantNames.OfficeDebugJS];
                 var officeScriptsCount = officeScripts.length;
+                this.getUseAssociatedActionsOnly = false;
                 var i, j;
                 for (i = 0; !this.basePath && i < scriptsCount; i++) {
                     if (scripts[i].src) {
                         for (j = 0; !this.basePath && j < officeScriptsCount; j++) {
                             this.basePath = getScriptBase(scripts[i].src, officeScripts[j]);
+                            if (this.basePath) {
+                                try {
+                                    var attr = scripts[i].getAttribute("data-use-associated-actions-only");
+                                    this.getUseAssociatedActionsOnly = attr === "1";
+                                }
+                                catch (ex) {
+                                }
+                            }
                         }
                     }
                 }
                 return this.basePath;
             }
+        };
+        LoadScriptHelper.prototype.getUseAssociatedActionsOnlyDefined = function () {
+            this.getOfficeJsBasePath();
+            return this.getUseAssociatedActionsOnly;
         };
         LoadScriptHelper.prototype.loadScript = function (url, scriptId, callback, highPriority, timeoutInMs) {
             this.loadScriptInternal(url, scriptId, callback, highPriority, timeoutInMs);
@@ -1144,7 +1188,7 @@ var OTel;
         function OTelLogger() {
         }
         OTelLogger.loaded = function () {
-            return !(OTelLogger.logger === undefined);
+            return !(OTelLogger.logger === undefined || OTelLogger.sink === undefined);
         };
         OTelLogger.getOtelSinkCDNLocation = function () {
             return (OSF._OfficeAppFactory.getLoadScriptHelper().getOfficeJsBasePath() + CDN_PATH_OTELJS_AGAVE);
@@ -1191,6 +1235,7 @@ var OTel;
         OTelLogger.create = function (info) {
             var contract = {
                 id: info.appId,
+                marketplaceType: info.marketplaceType,
                 assetId: info.assetId,
                 officeJsVersion: info.officeJSVersion,
                 hostJsVersion: info.hostJSVersion,
@@ -1208,23 +1253,49 @@ var OTel;
                 'App.Version': version,
                 'Session.Id': OTelLogger.ensureValue(info.correlationId, "00000000-0000-0000-0000-000000000000")
             };
-            var sink = oteljs_agave.AgaveSink.createInstance(context);
             var namespace = "Office.Extensibility.OfficeJs";
             var ariaTenantToken = 'db334b301e7b474db5e0f02f07c51a47-a1b5bc36-1bbe-482f-a64a-c2d9cb606706-7439';
             var nexusTenantToken = 1755;
-            var logger = new oteljs.TelemetryLogger(undefined, fields);
-            logger.addSink(sink);
+            var logger = new oteljs.SimpleTelemetryLogger(undefined, fields);
             logger.setTenantToken(namespace, ariaTenantToken, nexusTenantToken);
+            if (oteljs.AgaveSink) {
+                OTelLogger.sink = oteljs.AgaveSink.createInstance(context);
+            }
+            if (OTelLogger.sink === undefined) {
+                OTelLogger.attachLegacyAgaveSink(context);
+            }
+            else {
+                logger.addSink(OTelLogger.sink);
+            }
             return logger;
+        };
+        OTelLogger.attachLegacyAgaveSink = function (context) {
+            var afterLoadOtelSink = function () {
+                if (typeof oteljs_agave !== "undefined") {
+                    OTelLogger.sink = oteljs_agave.AgaveSink.createInstance(context);
+                }
+                if (OTelLogger.sink === undefined || OTelLogger.logger === undefined) {
+                    OTelLogger.Enabled = false;
+                    OTelLogger.promises = [];
+                    OTelLogger.logger = undefined;
+                    OTelLogger.sink = undefined;
+                    return;
+                }
+                OTelLogger.logger.addSink(OTelLogger.sink);
+                OTelLogger.promises.forEach(function (resolve) {
+                    resolve();
+                });
+            };
+            var timeoutAfterFiveSeconds = 5000;
+            OSF.OUtil.loadScript(OTelLogger.getOtelSinkCDNLocation(), afterLoadOtelSink, timeoutAfterFiveSeconds);
         };
         OTelLogger.initialize = function (info) {
             if (!OTelLogger.Enabled) {
                 OTelLogger.promises = [];
                 return;
             }
-            var timeoutAfterOneSecond = 1000;
             var afterOnReady = function () {
-                if ((typeof oteljs === "undefined") || (typeof oteljs_agave === "undefined")) {
+                if ((typeof oteljs === "undefined")) {
                     return;
                 }
                 if (!OTelLogger.loaded()) {
@@ -1236,15 +1307,21 @@ var OTel;
                     });
                 }
             };
-            var afterLoadOtelSink = function () {
-                Microsoft.Office.WebExtension.onReadyInternal().then(function () { return afterOnReady(); });
-            };
-            OSF.OUtil.loadScript(OTelLogger.getOtelSinkCDNLocation(), afterLoadOtelSink, timeoutAfterOneSecond);
+            Microsoft.Office.WebExtension.onReadyInternal().then(function () { return afterOnReady(); });
         };
         OTelLogger.sendTelemetryEvent = function (telemetryEvent) {
             OTelLogger.onTelemetryLoaded(function () {
                 try {
                     OTelLogger.logger.sendTelemetryEvent(telemetryEvent);
+                }
+                catch (e) {
+                }
+            });
+        };
+        OTelLogger.sendCustomerContent = function (customerContentEvent) {
+            OTelLogger.onTelemetryLoaded(function () {
+                try {
+                    OTelLogger.logger.sendCustomerContent(customerContentEvent);
                 }
                 catch (e) {
                 }
@@ -1357,7 +1434,7 @@ var g_isOfflineLibrary = g_isOfflineLibrary || false;
 (function () {
     var previousConstantNames = OSF.ConstantNames || {};
     OSF.ConstantNames = {
-        FileVersion: "16.0.13927.10000",
+        FileVersion: "16.0.15407.10000",
         OfficeJS: "office.js",
         OfficeDebugJS: "office.debug.js",
         DefaultLocale: "en-us",
@@ -1482,6 +1559,7 @@ OSF._OfficeAppFactory = (function OSF__OfficeAppFactory() {
     Microsoft.Office.WebExtension.sendTelemetryEvent = function Microsoft_Office_WebExtension_sendTelemetryEvent(telemetryEvent) {
         OTel.OTelLogger.sendTelemetryEvent(telemetryEvent);
     };
+    Microsoft.Office.WebExtension.telemetrySink = OTel.OTelLogger;
     Microsoft.Office.WebExtension.onReadyInternal = function Microsoft_Office_WebExtension_onReadyInternal(callback) {
         if (_isOfficeJsLoaded) {
             var host_1 = _officeOnReadyHostAndPlatformInfo.host, platform_1 = _officeOnReadyHostAndPlatformInfo.platform, addin_1 = _officeOnReadyHostAndPlatformInfo.addin;
@@ -1572,42 +1650,43 @@ OSF._OfficeAppFactory = (function OSF__OfficeAppFactory() {
     };
     var _retrieveHostInfo = function OSF__OfficeAppFactory$_retrieveHostInfo() {
         var hostInfoParaName = "_host_Info";
-        var hostInfoValue = getQueryStringValue(hostInfoParaName);
-        if (!hostInfoValue) {
-            try {
-                var windowNameObj = JSON.parse(_windowName);
-                hostInfoValue = windowNameObj ? windowNameObj["hostInfo"] : null;
+        var hostInfoValue = null;
+        try {
+            window.external = window.external || {};
+            if (typeof agaveHost !== "undefined" && agaveHost.GetHostInfo) {
+                window.external.GetHostInfo = function () {
+                    return agaveHost.GetHostInfo();
+                };
             }
-            catch (Exception) {
+            var sandboxHostInfo = window.external.GetHostInfo();
+            if (sandboxHostInfo == "isDialog") {
+                _hostInfo.isO15 = true;
+                _hostInfo.isDialog = true;
             }
-        }
-        if (!hostInfoValue) {
-            try {
-                window.external = window.external || {};
-                if (typeof agaveHost !== "undefined" && agaveHost.GetHostInfo) {
-                    window.external.GetHostInfo = function () {
-                        return agaveHost.GetHostInfo();
-                    };
-                }
-                var fallbackHostInfo = window.external.GetHostInfo();
-                if (fallbackHostInfo == "isDialog") {
-                    _hostInfo.isO15 = true;
-                    _hostInfo.isDialog = true;
-                }
-                else if (fallbackHostInfo.toLowerCase().indexOf("mac") !== -1 && fallbackHostInfo.toLowerCase().indexOf("outlook") !== -1 && shouldLoadOldOutlookMacJs()) {
-                    _hostInfo.isO15 = true;
+            else if (sandboxHostInfo.toLowerCase().indexOf("mac") !== -1 && sandboxHostInfo.toLowerCase().indexOf("outlook") !== -1 && shouldLoadOldOutlookMacJs()) {
+                _hostInfo.isO15 = true;
+            }
+            else {
+                var hostInfoParts = sandboxHostInfo.split(hostInfoParaName + "=");
+                if (hostInfoParts.length > 1) {
+                    hostInfoValue = hostInfoParts[1];
                 }
                 else {
-                    var hostInfoParts = fallbackHostInfo.split(hostInfoParaName + "=");
-                    if (hostInfoParts.length > 1) {
-                        hostInfoValue = hostInfoParts[1];
-                    }
-                    else {
-                        hostInfoValue = fallbackHostInfo;
-                    }
+                    hostInfoValue = sandboxHostInfo;
                 }
             }
-            catch (Exception) {
+        }
+        catch (Exception) {
+        }
+        if (!hostInfoValue) {
+            hostInfoValue = getQueryStringValue(hostInfoParaName);
+            if (!hostInfoValue) {
+                try {
+                    var windowNameObj = JSON.parse(_windowName);
+                    hostInfoValue = windowNameObj ? windowNameObj["hostInfo"] : null;
+                }
+                catch (Exception) {
+                }
             }
         }
         var getSessionStorage = function OSF__OfficeAppFactory$_retrieveHostInfo$getSessionStorage() {
@@ -1795,7 +1874,7 @@ OSF._OfficeAppFactory = (function OSF__OfficeAppFactory() {
                                     }
                                     _initializationHelper.prepareRightBeforeWebExtensionInitialize(appContext);
                                 }
-                                _initializationHelper.prepareRightAfterWebExtensionInitialize && _initializationHelper.prepareRightAfterWebExtensionInitialize();
+                                _initializationHelper.prepareRightAfterWebExtensionInitialize && _initializationHelper.prepareRightAfterWebExtensionInitialize(appContext);
                                 var appNumber = appContext.get_appName();
                                 var addinInfo = null;
                                 if ((_hostInfo.flags & OSF.HostInfoFlags.SharedApp) !== 0) {
@@ -1879,33 +1958,19 @@ OSF._OfficeAppFactory = (function OSF__OfficeAppFactory() {
         }
         else {
             var hostSpecificFileName;
-            if (g_isExpEnabled) {
-                hostSpecificFileName = ([
-                    _hostInfo.hostType,
-                    _hostInfo.hostPlatform,
-                    OSF.ConstantNames.ExperimentScriptSuffix || null,
-                    OSF.ConstantNames.HostFileScriptSuffix || null,
-                ]
-                    .filter(function (part) { return part != null; })
-                    .join("-"))
-                    +
-                        ".debug.js";
-            }
-            else {
-                hostSpecificFileName = ([
-                    _hostInfo.hostType,
-                    _hostInfo.hostPlatform,
-                    _hostInfo.hostSpecificFileVersion,
-                    OSF.ConstantNames.HostFileScriptSuffix || null,
-                ]
-                    .filter(function (part) { return part != null; })
-                    .join("-"))
-                    +
-                        ".debug.js";
-            }
+            hostSpecificFileName = ([
+                _hostInfo.hostType,
+                _hostInfo.hostPlatform,
+                _hostInfo.hostSpecificFileVersion,
+                OSF.ConstantNames.HostFileScriptSuffix || null,
+            ]
+                .filter(function (part) { return part != null; })
+                .join("-"))
+                +
+                    ".debug.js";
             _loadScriptHelper.loadScript(basePath + hostSpecificFileName.toLowerCase(), OSF.ConstantNames.HostFileId, onAppCodeReady);
             if (typeof OSFPerformance !== "undefined") {
-                OSFPerformance.hostSpecificFileName = hostSpecificFileName;
+                OSFPerformance.hostSpecificFileName = hostSpecificFileName.toLowerCase();
             }
         }
         if (_hostInfo.hostLocale) {
@@ -2373,9 +2438,8 @@ var oteljs = function(modules) {
         function SimpleTelemetryLogger(parent, persistentDataFields, config) {
             var _a, _b;
             this.onSendEvent = new Event.a, this.persistentDataFields = [], this.config = config || {}, 
-            parent ? (this.onSendEvent = parent.onSendEvent, (_a = this.persistentDataFields).push.apply(_a, parent.persistentDataFields), 
-            this.config = __assign(__assign({}, parent.getConfig()), this.config)) : this.persistentDataFields.push(Object(DataFieldHelper.e)("OTelJS.Version", "3.1.70")), 
-            persistentDataFields && (_b = this.persistentDataFields).push.apply(_b, persistentDataFields);
+            parent && (this.onSendEvent = parent.onSendEvent, (_a = this.persistentDataFields).push.apply(_a, parent.persistentDataFields), 
+            this.config = __assign(__assign({}, parent.getConfig()), this.config)), persistentDataFields && (_b = this.persistentDataFields).push.apply(_b, persistentDataFields);
         }
         return SimpleTelemetryLogger.prototype.sendTelemetryEvent = function(event) {
             var localEvent;
@@ -2393,7 +2457,8 @@ var oteljs = function(modules) {
         }, SimpleTelemetryLogger.prototype.processTelemetryEvent = function(event) {
             var _a;
             event.telemetryProperties || (event.telemetryProperties = TenantTokenManager_TenantTokenManager.getTenantTokens(event.eventName)), 
-            event.dataFields && this.persistentDataFields && (_a = event.dataFields).unshift.apply(_a, this.persistentDataFields), 
+            event.dataFields && (event.dataFields.unshift(Object(DataFieldHelper.e)("OTelJS.Version", "3.1.74")), 
+            this.persistentDataFields && (_a = event.dataFields).unshift.apply(_a, this.persistentDataFields)), 
             this.config.disableValidation || TelemetryEventValidator_TelemetryEventValidator.validateTelemetryEvent(event);
         }, SimpleTelemetryLogger.prototype.addSink = function(sink) {
             this.onSendEvent.addListener((function(event) {

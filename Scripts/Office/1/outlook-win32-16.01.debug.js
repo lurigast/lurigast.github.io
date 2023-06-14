@@ -1,6 +1,6 @@
 /*! Outlook specific API library */
 /*! Version: 16.0.6807.1000 */
-/*! Update: 5 */
+/*! Update: 8 */
 /*!
 	Copyright (c) Microsoft Corporation.  All rights reserved.
 */
@@ -1063,6 +1063,7 @@ Microsoft.Office.WebExtension.Parameters={
 	Height: "height",
 	RequireHTTPs: "requireHTTPS",
 	MessageToParent: "messageToParent",
+	TargetOrigin: "targetOrigin",
 	XFrameDenySafe: "xFrameDenySafe"
 };
 OSF.OUtil.setNamespace("DDA",OSF);
@@ -1653,6 +1654,26 @@ var OfficeExt;
 				return DefaultSetRequirement
 			}();
 		Requirement.DefaultSetRequirement=DefaultSetRequirement;
+		var DefaultRequiredDialogSetRequirement = (function (_super) {
+            __extends(DefaultRequiredDialogSetRequirement, _super);
+            function DefaultRequiredDialogSetRequirement() {
+                return _super.call(this, {
+                    "dialogapi": 1.1
+                }) || this;
+            }
+            return DefaultRequiredDialogSetRequirement;
+        }(DefaultSetRequirement));
+        Requirement.DefaultRequiredDialogSetRequirement = DefaultRequiredDialogSetRequirement;
+        var DefaultOptionalDialogSetRequirement = (function (_super) {
+            __extends(DefaultOptionalDialogSetRequirement, _super);
+            function DefaultOptionalDialogSetRequirement() {
+                return _super.call(this, {
+                    "dialogorigin": 1.1
+                }) || this;
+            }
+            return DefaultOptionalDialogSetRequirement;
+        }(DefaultSetRequirement));
+        Requirement.DefaultOptionalDialogSetRequirement = DefaultOptionalDialogSetRequirement;
 		var ExcelClientDefaultSetRequirement=function(_super)
 			{
 				__extends(ExcelClientDefaultSetRequirement,_super);
@@ -1997,6 +2018,25 @@ var OfficeExt;
 					}
 					return defaultRequirementMatrix
 				};
+				RequirementsMatrixFactory.getDefaultDialogRequirementMatrix = function (appContext) {
+					var setRequirements = new DefaultRequiredDialogSetRequirement();
+					var mainRequirement = appContext.get_requirementMatrix();
+					if (mainRequirement != undefined && mainRequirement.length > 0 && typeof (JSON) !== "undefined") {
+						var matrixItem = JSON.parse(mainRequirement.toLowerCase());
+						for (var name in setRequirements._sets) {
+							if (matrixItem.hasOwnProperty(name)) {
+								setRequirements._sets[name] = matrixItem[name];
+							}
+						}
+						var dialogOptionalSetRequirement = new DefaultOptionalDialogSetRequirement();
+						for (var name in dialogOptionalSetRequirement._sets) {
+							if (matrixItem.hasOwnProperty(name)) {
+								setRequirements._sets[name] = matrixItem[name];
+							}
+						}
+					}
+					return new RequirementMatrix(setRequirements);
+				};
 				RequirementsMatrixFactory.getClientFullVersionString=function(appContext)
 				{
 					var appMinorVersion=appContext.get_appMinorVersion();
@@ -2171,8 +2211,13 @@ OSF.DDA.Context=function OSF_DDA_Context(officeAppContext, document, license, ap
 		OSF.OUtil.defineEnumerableProperty(this,"license",{value: license});
 	if(officeAppContext.ui)
 		OSF.OUtil.defineEnumerableProperty(this,"ui",{value: officeAppContext.ui});
-	if(!officeAppContext.get_isDialog())
-	{
+	if(officeAppContext.get_isDialog()) {
+        var requirements = OfficeExt.Requirement.RequirementsMatrixFactory.getDefaultDialogRequirementMatrix(officeAppContext);
+        OSF.OUtil.defineEnumerableProperty(this, "requirements", {
+            value: requirements
+        });
+	}
+	else {
 		if(document)
 			OSF.OUtil.defineEnumerableProperty(this,"document",{value: document});
 		if(appOM)
@@ -3282,7 +3327,7 @@ OSF.DDA.DispIdHost.Facade=function OSF_DDA_DispIdHost_Facade(getDelegateMethods,
 		var dispId=dispIdMap[syncMethodCall];
 		return invoker({
 				dispId: dispId,
-				hostCallArgs: callArgs[Microsoft.Office.WebExtension.Parameters.MessageToParent],
+				hostCallArgs: callArgs,
 				onCalling: function OSF_DDA_DispIdFacade$Execute_onCalling()
 				{
 					OSF.OUtil.writeProfilerMark(OSF.HostCallPerfMarker.IssueCall)
@@ -3778,8 +3823,30 @@ var OSFRichclient;
                 window.external.UnregisterEvent(id, targetId, callback);
             }
         };
-        RichClientHostController.prototype.messageParent=function (message) {
-            window.external.MessageParent(message);
+        RichClientHostController.prototype.messageParent=function (params) {
+            if (params) {
+                var messageToParent = params[Microsoft.Office.WebExtension.Parameters.MessageToParent];
+                if (typeof messageToParent === "boolean") {
+                    if (messageToParent === true) {
+                        params[Microsoft.Office.WebExtension.Parameters.MessageToParent] = "true";
+                    }
+                    else if (messageToParent === false) {
+                        params[Microsoft.Office.WebExtension.Parameters.MessageToParent] = "";
+                    }
+                }
+            }
+            if (typeof window.external.MessageParent2 != 'undefined') {
+                if (typeof OsfOMToken != 'undefined' && OsfOMToken) {
+                    window.external.MessageParent2(JSON.stringify(params), OsfOMToken);
+                }
+                else {
+                    window.external.MessageParent2(JSON.stringify(params));
+                }
+            }
+            else {
+                var message = params[Microsoft.Office.WebExtension.Parameters.MessageToParent];
+                window.external.MessageParent(message);
+            }
         };
         return RichClientHostController;
     })();
@@ -4252,7 +4319,8 @@ OSF.OUtil.augmentList(Microsoft.Office.WebExtension.EventType,{
 });
 OSF.OUtil.augmentList(OSF.DDA.PropertyDescriptors,{
 	MessageType: "messageType",
-	MessageContent: "messageContent"
+	MessageContent: "messageContent",
+	MessageOrigin: "messageOrigin"
 });
 OSF.DDA.DialogEventType={};
 OSF.OUtil.augmentList(OSF.DDA.DialogEventType,{
@@ -4298,7 +4366,8 @@ OSF.DDA.DialogEventArgs=function OSF_DDA_DialogEventArgs(message)
 	if(message[OSF.DDA.PropertyDescriptors.MessageType]==OSF.DialogMessageType.DialogMessageReceived)
 		OSF.OUtil.defineEnumerableProperties(this,{
 			type: {value: Microsoft.Office.WebExtension.EventType.DialogMessageReceived},
-			message: {value: message[OSF.DDA.PropertyDescriptors.MessageContent]}
+			message: {value: message[OSF.DDA.PropertyDescriptors.MessageContent]},
+			origin: {value: message[OSF.DDA.PropertyDescriptors.MessageOrigin]}
 		});
 	else
 		OSF.OUtil.defineEnumerableProperties(this,{
@@ -4385,7 +4454,14 @@ OSF.DDA.SyncMethodCalls.define({
 			name: Microsoft.Office.WebExtension.Parameters.MessageToParent,
 			types: ["string","number","boolean"]
 		}],
-	supportedOptions: []
+	supportedOptions: [
+		{
+            name: Microsoft.Office.WebExtension.Parameters.TargetOrigin,
+            value: {
+                "types": ["string"],
+                "defaultValue": ""
+            }
+        }]
 });
 OSF.DDA.SyncMethodCalls.define({
 	method: OSF.DDA.SyncMethodNames.AddMessageHandler,
@@ -4437,6 +4513,9 @@ OSF.DDA.SafeArray.Delegate.ParameterMap.define({
 		},{
 			name: OSF.DDA.PropertyDescriptors.MessageContent,
 			value: 1
+		},{
+			name: OSF.DDA.PropertyDescriptors.MessageOrigin,
+			value: 2 
 		}],
 	isComplexType: true
 });
@@ -5793,211 +5872,239 @@ var OSFAppTelemetry;
     OSF.AppTelemetry=OSFAppTelemetry
 })(OSFAppTelemetry || (OSFAppTelemetry={}));
 var OfficeExt;
-(function(OfficeExt)
-{
-	var AppCommand;
-	(function(AppCommand)
-	{
-		var AppCommandManager=function()
-			{
-				function AppCommandManager()
-				{
-					var _this=this;
-					this._pseudoDocument=null;
-					this._eventDispatch=null;
-					this._processAppCommandInvocation=function(args)
-					{
-						var verifyResult=_this._verifyManifestCallback(args.callbackName);
-						if(verifyResult.errorCode !=OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess)
-						{
-							_this._invokeAppCommandCompletedMethod(args.appCommandId,verifyResult.errorCode,"");
-							return
-						}
-						var eventObj=_this._constructEventObjectForCallback(args);
-						if(eventObj)
-							window.setTimeout(function()
-							{
-								verifyResult.callback(eventObj)
-							},0);
-						else
-							_this._invokeAppCommandCompletedMethod(args.appCommandId,OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError,"")
-					}
-				}
-				AppCommandManager.initializeOsfDda=function()
-				{
-					OSF.DDA.AsyncMethodNames.addNames({AppCommandInvocationCompletedAsync: "appCommandInvocationCompletedAsync"});
-					OSF.DDA.AsyncMethodCalls.define({
-						method: OSF.DDA.AsyncMethodNames.AppCommandInvocationCompletedAsync,
-						requiredArguments: [{
-								name: Microsoft.Office.WebExtension.Parameters.Id,
-								types: ["string"]
-							},{
-								name: Microsoft.Office.WebExtension.Parameters.Status,
-								types: ["number"]
-							},{
-								name: Microsoft.Office.WebExtension.Parameters.Data,
-								types: ["string"]
-							}]
-					});
-					OSF.OUtil.augmentList(OSF.DDA.EventDescriptors,{AppCommandInvokedEvent: "AppCommandInvokedEvent"});
-					OSF.OUtil.augmentList(Microsoft.Office.WebExtension.EventType,{AppCommandInvoked: "appCommandInvoked"});
-					OSF.OUtil.setNamespace("AppCommand",OSF.DDA);
-					OSF.DDA.AppCommand.AppCommandInvokedEventArgs=OfficeExt.AppCommand.AppCommandInvokedEventArgs
-				};
-				AppCommandManager.prototype.initializeAndChangeOnce=function(callback)
-				{
-					AppCommand.registerDdaFacade();
-					this._pseudoDocument={};
-					OSF.DDA.DispIdHost.addAsyncMethods(this._pseudoDocument,[OSF.DDA.AsyncMethodNames.AppCommandInvocationCompletedAsync,]);
-					this._eventDispatch=new OSF.EventDispatch([Microsoft.Office.WebExtension.EventType.AppCommandInvoked,]);
-					var onRegisterCompleted=function(result)
-						{
-							if(callback)
-								if(result.status=="succeeded")
-									callback(OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess);
-								else
-									callback(OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError)
-						};
-					OSF.DDA.DispIdHost.addEventSupport(this._pseudoDocument,this._eventDispatch);
-					this._pseudoDocument.addHandlerAsync(Microsoft.Office.WebExtension.EventType.AppCommandInvoked,this._processAppCommandInvocation,onRegisterCompleted)
-				};
-				AppCommandManager.prototype._verifyManifestCallback=function(callbackName)
-				{
-					var defaultResult={
-							callback: null,
-							errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeInvalidCallback
-						};
-					callbackName=callbackName.trim();
-					try
-					{
-						var callList=callbackName.split(".");
-						var parentObject=window;
-						for(var i=0; i < callList.length - 1; i++)
-							if(parentObject[callList[i]] && typeof parentObject[callList[i]]=="object")
-								parentObject=parentObject[callList[i]];
-							else
-								return defaultResult;
-						var callbackFunc=parentObject[callList[callList.length - 1]];
-						if(typeof callbackFunc !="function")
-							return defaultResult
-					}
-					catch(e)
-					{
-						return defaultResult
-					}
-					return{
-							callback: callbackFunc,
-							errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess
-						}
-				};
-				AppCommandManager.prototype._invokeAppCommandCompletedMethod=function(appCommandId, resultCode, data)
-				{
-					this._pseudoDocument.appCommandInvocationCompletedAsync(appCommandId,resultCode,data)
-				};
-				AppCommandManager.prototype._constructEventObjectForCallback=function(args)
-				{
-					var _this=this;
-					var eventObj=new AppCommandCallbackEventArgs;
-					try
-					{
-						var jsonData=JSON.parse(args.eventObjStr);
-						this._translateEventObjectInternal(jsonData,eventObj);
-						Object.defineProperty(eventObj,"completed",{
-							value: function()
-							{
-								var jsonString=JSON.stringify(eventObj);
-								_this._invokeAppCommandCompletedMethod(args.appCommandId,OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess,jsonString)
-							},
-							enumerable: true
-						})
-					}
-					catch(e)
-					{
-						eventObj=null
-					}
-					return eventObj
-				};
-				AppCommandManager.prototype._translateEventObjectInternal=function(input, output)
-				{
-					for(var key in input)
-					{
-						if(!input.hasOwnProperty(key))
-							continue;
-						var inputChild=input[key];
-						if(typeof inputChild=="object" && inputChild !=null)
-						{
-							OSF.OUtil.defineEnumerableProperty(output,key,{value: {}});
-							this._translateEventObjectInternal(inputChild,output[key])
-						}
-						else
-							Object.defineProperty(output,key,{
-								value: inputChild,
-								enumerable: true,
-								writable: true
-							})
-					}
-				};
-				AppCommandManager.prototype._constructObjectByTemplate=function(template, input)
-				{
-					var output={};
-					if(!template || !input)
-						return output;
-					for(var key in template)
-						if(template.hasOwnProperty(key))
-						{
-							output[key]=null;
-							if(input[key] !=null)
-							{
-								var templateChild=template[key];
-								var inputChild=input[key];
-								var inputChildType=typeof inputChild;
-								if(typeof templateChild=="object" && templateChild !=null)
-									output[key]=this._constructObjectByTemplate(templateChild,inputChild);
-								else if(inputChildType=="number" || inputChildType=="string" || inputChildType=="boolean")
-									output[key]=inputChild
-							}
-						}
-					return output
-				};
-				AppCommandManager.instance=function()
-				{
-					if(AppCommandManager._instance==null)
-						AppCommandManager._instance=new AppCommandManager;
-					return AppCommandManager._instance
-				};
-				AppCommandManager._instance=null;
-				return AppCommandManager
-			}();
-		AppCommand.AppCommandManager=AppCommandManager;
-		var AppCommandInvokedEventArgs=function()
-			{
-				function AppCommandInvokedEventArgs(appCommandId, callbackName, eventObjStr)
-				{
-					this.type=Microsoft.Office.WebExtension.EventType.AppCommandInvoked;
-					this.appCommandId=appCommandId;
-					this.callbackName=callbackName;
-					this.eventObjStr=eventObjStr
-				}
-				AppCommandInvokedEventArgs.create=function(eventProperties)
-				{
-					return new AppCommandInvokedEventArgs(eventProperties[AppCommand.AppCommandInvokedEventEnums.AppCommandId],eventProperties[AppCommand.AppCommandInvokedEventEnums.CallbackName],eventProperties[AppCommand.AppCommandInvokedEventEnums.EventObjStr])
-				};
-				return AppCommandInvokedEventArgs
-			}();
-		AppCommand.AppCommandInvokedEventArgs=AppCommandInvokedEventArgs;
-		var AppCommandCallbackEventArgs=function()
-			{
-				function AppCommandCallbackEventArgs(){}
-				return AppCommandCallbackEventArgs
-			}();
-		AppCommand.AppCommandCallbackEventArgs=AppCommandCallbackEventArgs;
-		AppCommand.AppCommandInvokedEventEnums={
-			AppCommandId: "appCommandId",
-			CallbackName: "callbackName",
-			EventObjStr: "eventObjStr"
-		}
-	})(AppCommand=OfficeExt.AppCommand || (OfficeExt.AppCommand={}))
-})(OfficeExt || (OfficeExt={}));
+(function (OfficeExt) {
+    var AppCommand;
+    (function (AppCommand) {
+        var AppCommandManager = (function () {
+            function AppCommandManager() {
+                var _this = this;
+                this._pseudoDocument = null;
+                this._eventDispatch = null;
+                this._useAssociatedActionsOnly = null;
+                this._processAppCommandInvocation = function (args) {
+                    var verifyResult = _this._verifyManifestCallback(args.callbackName);
+                    if (verifyResult.errorCode != OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess) {
+                        _this._invokeAppCommandCompletedMethod(args.appCommandId, verifyResult.errorCode, "");
+                        return;
+                    }
+                    var eventObj = _this._constructEventObjectForCallback(args);
+                    if (eventObj) {
+                        window.setTimeout(function () { verifyResult.callback(eventObj); }, 0);
+                    }
+                    else {
+                        _this._invokeAppCommandCompletedMethod(args.appCommandId, OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError, "");
+                    }
+                };
+            }
+            AppCommandManager.initializeOsfDda = function () {
+                OSF.DDA.AsyncMethodNames.addNames({
+                    AppCommandInvocationCompletedAsync: "appCommandInvocationCompletedAsync"
+                });
+                OSF.DDA.AsyncMethodCalls.define({
+                    method: OSF.DDA.AsyncMethodNames.AppCommandInvocationCompletedAsync,
+                    requiredArguments: [{
+                            "name": Microsoft.Office.WebExtension.Parameters.Id,
+                            "types": ["string"]
+                        },
+                        {
+                            "name": Microsoft.Office.WebExtension.Parameters.Status,
+                            "types": ["number"]
+                        },
+                        {
+                            "name": Microsoft.Office.WebExtension.Parameters.AppCommandInvocationCompletedData,
+                            "types": ["string"]
+                        }
+                    ]
+                });
+                OSF.OUtil.augmentList(OSF.DDA.EventDescriptors, {
+                    AppCommandInvokedEvent: "AppCommandInvokedEvent"
+                });
+                OSF.OUtil.augmentList(Microsoft.Office.WebExtension.EventType, {
+                    AppCommandInvoked: "appCommandInvoked"
+                });
+                OSF.OUtil.setNamespace("AppCommand", OSF.DDA);
+                OSF.DDA.AppCommand.AppCommandInvokedEventArgs = OfficeExt.AppCommand.AppCommandInvokedEventArgs;
+            };
+            AppCommandManager.prototype.initializeAndChangeOnce = function (callback) {
+                AppCommand.registerDdaFacade();
+                this._pseudoDocument = {};
+                OSF.DDA.DispIdHost.addAsyncMethods(this._pseudoDocument, [
+                    OSF.DDA.AsyncMethodNames.AppCommandInvocationCompletedAsync,
+                ]);
+                this._eventDispatch = new OSF.EventDispatch([
+                    Microsoft.Office.WebExtension.EventType.AppCommandInvoked,
+                ]);
+                var onRegisterCompleted = function (result) {
+                    if (callback) {
+                        if (result.status == "succeeded") {
+                            callback(OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess);
+                        }
+                        else {
+                            callback(OSF.DDA.ErrorCodeManager.errorCodes.ooeInternalError);
+                        }
+                    }
+                };
+                OSF.DDA.DispIdHost.addEventSupport(this._pseudoDocument, this._eventDispatch);
+                this._pseudoDocument.addHandlerAsync(Microsoft.Office.WebExtension.EventType.AppCommandInvoked, this._processAppCommandInvocation, onRegisterCompleted);
+            };
+            AppCommandManager.prototype._verifyManifestCallback = function (callbackName) {
+                var defaultResult = { callback: null, errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeInvalidCallback };
+                callbackName = callbackName.trim();
+                try {
+                    var callbackFunc = this._getCallbackFunc(callbackName);
+                    if (typeof callbackFunc != "function") {
+                        return defaultResult;
+                    }
+                }
+                catch (e) {
+                    return defaultResult;
+                }
+                return { callback: callbackFunc, errorCode: OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess };
+            };
+            AppCommandManager.prototype._getUseAssociatedActionsOnly = function () {
+                if (this._useAssociatedActionsOnly == null) {
+                    this._useAssociatedActionsOnly = false;
+                    try {
+                        if (window["useAssociatedActionsOnly"] === true) {
+                            this._useAssociatedActionsOnly = true;
+                        }
+                        else {
+                            this._useAssociatedActionsOnly = OSF._OfficeAppFactory.getLoadScriptHelper().getUseAssociatedActionsOnlyDefined();
+                        }
+                    }
+                    catch (e) { }
+                }
+                return this._useAssociatedActionsOnly;
+            };
+            AppCommandManager.prototype._getCallbackFuncFromWindow = function (callbackName) {
+                var callList = callbackName.split(".");
+                var parentObject = window;
+                for (var i = 0; i < callList.length - 1; i++) {
+                    if (parentObject[callList[i]] && (typeof parentObject[callList[i]] == "object" || typeof parentObject[callList[i]] == "function")) {
+                        parentObject = parentObject[callList[i]];
+                    }
+                    else {
+                        return null;
+                    }
+                }
+                var callbackFunc = parentObject[callList[callList.length - 1]];
+                return callbackFunc;
+            };
+            AppCommandManager.prototype._getCallbackFuncFromActionAssociateTable = function (callbackName) {
+                var nameUpperCase = callbackName.toUpperCase();
+                return Office.actions._association.mappings[nameUpperCase];
+            };
+            AppCommandManager.prototype._getCallbackFunc = function (callbackName) {
+                var callbackFunc = null;
+                if (!this._getUseAssociatedActionsOnly()) {
+                    callbackFunc = this._getCallbackFuncFromWindow(callbackName);
+                }
+                if (!callbackFunc) {
+                    callbackFunc = this._getCallbackFuncFromActionAssociateTable(callbackName);
+                }
+                return callbackFunc;
+            };
+            AppCommandManager.prototype._invokeAppCommandCompletedMethod = function (appCommandId, resultCode, data) {
+                this._pseudoDocument.appCommandInvocationCompletedAsync(appCommandId, resultCode, data);
+            };
+            AppCommandManager.prototype._constructEventObjectForCallback = function (args) {
+                var _this = this;
+                var eventObj = new AppCommandCallbackEventArgs();
+                try {
+                    var jsonData = JSON.parse(args.eventObjStr);
+                    this._translateEventObjectInternal(jsonData, eventObj);
+                    Object.defineProperty(eventObj, 'completed', {
+                        value: function (completedContext) {
+                            eventObj.completedContext = completedContext;
+                            var jsonString = JSON.stringify(eventObj);
+                            _this._invokeAppCommandCompletedMethod(args.appCommandId, OSF.DDA.ErrorCodeManager.errorCodes.ooeSuccess, jsonString);
+                        },
+                        enumerable: true
+                    });
+                }
+                catch (e) {
+                    eventObj = null;
+                }
+                return eventObj;
+            };
+            AppCommandManager.prototype._translateEventObjectInternal = function (input, output) {
+                for (var key in input) {
+                    if (!input.hasOwnProperty(key))
+                        continue;
+                    var inputChild = input[key];
+                    if (typeof inputChild == "object" && inputChild != null) {
+                        OSF.OUtil.defineEnumerableProperty(output, key, {
+                            value: {}
+                        });
+                        this._translateEventObjectInternal(inputChild, output[key]);
+                    }
+                    else {
+                        Object.defineProperty(output, key, {
+                            value: inputChild,
+                            enumerable: true,
+                            writable: true
+                        });
+                    }
+                }
+            };
+            AppCommandManager.prototype._constructObjectByTemplate = function (template, input) {
+                var output = {};
+                if (!template || !input)
+                    return output;
+                for (var key in template) {
+                    if (template.hasOwnProperty(key)) {
+                        output[key] = null;
+                        if (input[key] != null) {
+                            var templateChild = template[key];
+                            var inputChild = input[key];
+                            var inputChildType = typeof inputChild;
+                            if (typeof templateChild == "object" && templateChild != null) {
+                                output[key] = this._constructObjectByTemplate(templateChild, inputChild);
+                            }
+                            else if (inputChildType == "number" || inputChildType == "string" || inputChildType == "boolean") {
+                                output[key] = inputChild;
+                            }
+                        }
+                    }
+                }
+                return output;
+            };
+            AppCommandManager.instance = function () {
+                if (AppCommandManager._instance == null) {
+                    AppCommandManager._instance = new AppCommandManager();
+                }
+                return AppCommandManager._instance;
+            };
+            AppCommandManager._instance = null;
+            return AppCommandManager;
+        }());
+        AppCommand.AppCommandManager = AppCommandManager;
+        var AppCommandInvokedEventArgs = (function () {
+            function AppCommandInvokedEventArgs(appCommandId, callbackName, eventObjStr) {
+                this.type = Microsoft.Office.WebExtension.EventType.AppCommandInvoked;
+                this.appCommandId = appCommandId;
+                this.callbackName = callbackName;
+                this.eventObjStr = eventObjStr;
+            }
+            AppCommandInvokedEventArgs.create = function (eventProperties) {
+                return new AppCommandInvokedEventArgs(eventProperties[AppCommand.AppCommandInvokedEventEnums.AppCommandId], eventProperties[AppCommand.AppCommandInvokedEventEnums.CallbackName], eventProperties[AppCommand.AppCommandInvokedEventEnums.EventObjStr]);
+            };
+            return AppCommandInvokedEventArgs;
+        }());
+        AppCommand.AppCommandInvokedEventArgs = AppCommandInvokedEventArgs;
+        var AppCommandCallbackEventArgs = (function () {
+            function AppCommandCallbackEventArgs() {
+            }
+            return AppCommandCallbackEventArgs;
+        }());
+        AppCommand.AppCommandCallbackEventArgs = AppCommandCallbackEventArgs;
+        AppCommand.AppCommandInvokedEventEnums = {
+            AppCommandId: "appCommandId",
+            CallbackName: "callbackName",
+            EventObjStr: "eventObjStr"
+        };
+    })(AppCommand = OfficeExt.AppCommand || (OfficeExt.AppCommand = {}));
+})(OfficeExt || (OfficeExt = {}));
 OfficeExt.AppCommand.AppCommandManager.initializeOsfDda();
 var OfficeExt;
 (function(OfficeExt)
